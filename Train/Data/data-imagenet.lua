@@ -239,7 +239,6 @@ function load_imagenet_async(data_file, info_file)
 	imData.nbatches = math.floor(imData.n / opt.batchSize)	
 	prepare(imData)
 
-
 	return imData
 
 end
@@ -248,18 +247,18 @@ end
 --script for filtering imagenet
 function filter_imagenet(src_data_file, src_info_file, dst_data_file, dst_info_file, classes, class_names)
 
-	--specify classes which we want to select
-
-	--------------------------------------------------------------------------------------
-
 	local d = torch.load(src_info_file)
 	local jpegs = torch.ByteStorage(src_data_file)
 
 	local classes_set = {}
+	local labels_map = {} --map labels, so that they will start from 1
+	local new_class_names = {}
+
 	for i = 1, #classes do
 		classes_set[classes[i]] = true
+		labels_map[classes[i]] = i
+		new_class_names[i] = class_names[classes[i]]
 	end
-
 
 	print('calculating size of selected data')
 	local new_data_size = 0
@@ -289,7 +288,6 @@ function filter_imagenet(src_data_file, src_info_file, dst_data_file, dst_info_f
 	new_data.labels = torch.LongTensor(new_data_n)
 	new_data.sizes = torch.LongTensor(new_data_n)
 	new_data.offsets = torch.LongTensor(new_data_n)
-	new_data.classes = class_names
 	local t_new_jpegs = torch.ByteTensor(new_data_size)
 
 	print('copy data')
@@ -301,7 +299,7 @@ function filter_imagenet(src_data_file, src_info_file, dst_data_file, dst_info_f
 		xlua.progress(i, new_data_n)
 
 		local j = idxs[i]
-		new_data.labels[i] = d.labels[j]
+		new_data.labels[i] = labels_map[d.labels[j]]
 		new_data.sizes[i] = d.sizes[j]
 		new_data.offsets[i] = offset
 		offset_old = offset 	
@@ -310,6 +308,8 @@ function filter_imagenet(src_data_file, src_info_file, dst_data_file, dst_info_f
 		t_new_jpegs[{{offset_old, offset - 1}}] = t_jpegs[{{d.offsets[j], d.offsets[j] + d.sizes[j] - 1}}]
 
 	end
+
+	new_data.classes = new_class_names
 
 	print('saving data')
 	torch.save(dst_data_file, torch.ByteTensor(new_data_size - 107))
@@ -321,8 +321,8 @@ function filter_imagenet(src_data_file, src_info_file, dst_data_file, dst_info_f
 end
 ----------------------------------------------------------------------
 
---scripts for loading raw imagenet images from memory-mapped file
-function load_raw_imagenet(src_data_file, src_info_file, class_names)
+--scripts for loading raw resized imagenet images from memory-mapped file
+function load_raw_imagenet(src_data_file, src_info_file)
 
 	print('loading raw imagenet')
 
@@ -353,19 +353,19 @@ function load_raw_imagenet(src_data_file, src_info_file, class_names)
 		local sample = gm.Image():fromBlob(jpegblob,size):toTensor('float','RGB','DHW',true)
 		dt.data[i] = image.scale(sample, opt.width, opt.height)	
 		dt.labels[i] = d.labels[i]
-		--image.display(sample)
 
 	end
 
-	dt.classes = d.classes or class_names
+	dt.classes = d.classes
+
 	return dt 
 		
 end
 
 ----------------------------------------------------------------------
-function show_classes(data)
+function show_classes(data, k)
 
-   local k = 100
+   local k = k or 100
    local ivch = data.data:size(2)
    local ivhe = data.data:size(3)
    local ivwi = data.data:size(4)
@@ -409,4 +409,35 @@ function show_classes(data)
    end
 
 end
+-----------------------------------------------------------------------------
+
+function csv2table(csv_file, out_file)
+--convert class names from csv file to lua table 
+	
+	local csv = require 'csv'
+	torch.setdefaulttensortype('torch.FloatTensor')
+
+	local class_names = {}
+
+	-- load csv
+	local f = csv.open(csv_file)
+
+	for fields in f:lines() do
+
+		i = tonumber(fields[1])
+		if i then
+			label = fields[3]
+			class_names[i] = label	
+		else
+			print 'skip'
+		end	
+
+	end
+
+	-- save tables
+	torch.save(out_file, class_names)
+	print('==> Saved ' .. out_file)
+
+end
+
 
