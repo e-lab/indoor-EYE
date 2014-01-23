@@ -1,6 +1,6 @@
 dofile('data-imagenet.lua')
 
-data_folder = '/home/artem/neuflow/datasets/imagenet2012/'
+data_folder = '/home/artem/datasets/imagenet2012/'
 -----------------------------------------------------------------------------------------------
 if 1 == 0 then
    --async load batch example
@@ -18,6 +18,7 @@ dst_data = data_folder .. 'test-10cl-data.t7'
 dst_info = data_folder .. 'test-10cl-info.t7'
 
 --convert class names from csv to torch table. Do this once and the comment
+print(data_folder .. 'classes.csv', data_folder .. 'classes.th')
 csv2table(data_folder .. 'classes.csv', data_folder .. 'classes.th')
 
 --load class names
