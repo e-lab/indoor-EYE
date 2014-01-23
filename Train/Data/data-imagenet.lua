@@ -236,7 +236,7 @@ function load_imagenet_async(data_file, info_file)
    local imData = torch.load(info_file)
    imData.data = torch.ByteStorage(data_file)
    imData.n = imData.labels:size(1)
-   imData.nbatches = math.floor(imData.n / opt.batchSize)	
+   imData.nbatches = math.floor(imData.n / opt.batchSize)
    prepare(imData)
 
    return imData
@@ -302,8 +302,8 @@ function filter_imagenet(src_data_file, src_info_file, dst_data_file, dst_info_f
       new_data.labels[i] = labels_map[d.labels[j]]
       new_data.sizes[i] = d.sizes[j]
       new_data.offsets[i] = offset
-      offset_old = offset 	
-      offset = offset + new_data.sizes[i]	
+      offset_old = offset
+      offset = offset + new_data.sizes[i]
 
       t_new_jpegs[{{offset_old, offset - 1}}] = t_jpegs[{{d.offsets[j], d.offsets[j] + d.sizes[j] - 1}}]
 
@@ -316,7 +316,7 @@ function filter_imagenet(src_data_file, src_info_file, dst_data_file, dst_info_f
    local mmjpegs = torch.ByteStorage(dst_data_file, true)
    mmjpegs:copy(t_new_jpegs:storage())
 
-   torch.save(dst_info_file, new_data)	
+   torch.save(dst_info_file, new_data)
 
 end
 ----------------------------------------------------------------------
@@ -351,7 +351,7 @@ function load_raw_imagenet(src_data_file, src_info_file)
       local size = tonumber(sizes_p[i-1])
       local jpegblob = jpegs_p + offset
       local sample = gm.Image():fromBlob(jpegblob,size):toTensor('float','RGB','DHW',true)
-      dt.data[i] = image.scale(sample, opt.width, opt.height)	
+      dt.data[i] = image.scale(sample, opt.width, opt.height)
       dt.labels[i] = d.labels[i]
 
    end
@@ -427,10 +427,10 @@ function csv2table(csv_file, out_file)
       i = tonumber(fields[1])
       if i then
          label = fields[3]
-         class_names[i] = label	
+         class_names[i] = label
       else
          print 'skip'
-      end	
+      end
 
    end
 
