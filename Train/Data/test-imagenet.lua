@@ -3,11 +3,11 @@ dofile('data-imagenet.lua')
 data_folder = '/home/artem/neuflow/datasets/imagenet2012/'
 -----------------------------------------------------------------------------------------------
 if 1 == 0 then
-	--async load batch example
+   --async load batch example
 
-	testData = load_imagenet_async(data_folder .. 'test256m-data.t7', data_folder .. 'test256m-info.t7')
-	testData.prepareBatch(1) --this is done async in another thread
-	b = testData.copyBatch() --now you get first batch 
+   testData = load_imagenet_async(data_folder .. 'test256m-data.t7', data_folder .. 'test256m-info.t7')
+   testData.prepareBatch(1) --this is done async in another thread
+   b = testData.copyBatch() --now you get first batch 
 
 end
 ------------------------------------------------------------------------------------------------

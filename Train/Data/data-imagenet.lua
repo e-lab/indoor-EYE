@@ -35,19 +35,19 @@ function prepare(dataset)
    local offsets = dataset.offsets
    local sizes = dataset.sizes
    local labels = dataset.labels
-	--local shuffle = torch.randperm(nsamples):type('torch.LongTensor')
+   --local shuffle = torch.randperm(nsamples):type('torch.LongTensor')
 
-	shuffle = torch.range(1, nsamples):type('torch.LongTensor')
+   shuffle = torch.range(1, nsamples):type('torch.LongTensor')
 
    -- com is a shared state between the main thread and
    -- the batch thread, it holds two variables:
    -- com[0]: the index of the batch to generate (if 0, then the thread is idle)
    -- com[1]: whether the batch is used for test or not (1 for test)
    local com = ffi.new('unsigned long[3]', {0,0})
-   
+
    -- type:
---   local samplesCUDA = samples:clone():cuda()
---   local targetsCUDA = targets:clone():cuda()
+   --   local samplesCUDA = samples:clone():cuda()
+   --   local targetsCUDA = targets:clone():cuda()
 
    -- size:
    local function size()
@@ -61,7 +61,7 @@ function prepare(dataset)
       require 'torch'
       require 'torchffi'
       local gm = require 'graphicsmagick'
-		require 'image'
+      require 'image'
 
       --local distort = require 'distort'
 
@@ -111,14 +111,14 @@ function prepare(dataset)
             -- offsets:
             local start = ((idx-1)*bs + i) % nsamples
             local ii = shuffle_p[start] - 1
-            
+
             -- decode jpeg:
             local offset = tonumber(offsets_p[ii] - 1)
             local size = tonumber(sizes_p[ii])
             local jpegblob = jpegs_p + offset
             local sample = gm.Image():fromBlob(jpegblob,size):toTensor('float','RGB','DHW',true)
-				
-	         -- distort sample
+
+            -- distort sample
             if distorton and not test then
                -- rot + flip + scale:
                sample = distort(sample, 0.25,.33,.5)
@@ -132,7 +132,7 @@ function prepare(dataset)
             local r = l + size - 1
             sample = sample[{ {},{t,b},{l,r} }]
 
-				sample = image.scale(sample, w, h)
+            sample = image.scale(sample, w, h)
 
             -- extract sub-patch, with optional jitter:
             local size = math.min(sample:size(2), sample:size(3))
@@ -145,10 +145,10 @@ function prepare(dataset)
             local b = t + h - 1
             local r = l + w - 1
             sample = sample[{ {},{t,b},{l,r} }]
-            
+
             -- save sample:
             samples[i+1] = sample
-            
+
             -- normalize sample
             samples[i+1]:add(-global_mean) 
             if local_mean then
@@ -159,7 +159,7 @@ function prepare(dataset)
                local std = samples[i+1]:std()
                samples[i+1]:div(std)
             end
-            
+
             -- label:
             targets_p[i] = labels_p[ii]
          end
@@ -171,25 +171,25 @@ function prepare(dataset)
 
    -- dispatch:
    local thread = llthreads.new(string.dump(block),
-      nil,
-      nsamples, bs, c, h, w,
-      opt.distort,
-      opt.jitter,
-      opt.receptive,
-      opt.gm,
-      opt.lm,
-      opt.ls,
-      tonumber(ffi.cast('intptr_t', torch.data(shuffle))),
-      tonumber(ffi.cast('intptr_t', torch.data(samples))),
-      tonumber(ffi.cast('intptr_t', torch.data(targets))),
-      tonumber(ffi.cast('intptr_t', torch.data(jpegs))),
-      tonumber(ffi.cast('intptr_t', torch.data(offsets))),
-      tonumber(ffi.cast('intptr_t', torch.data(sizes))),
-      tonumber(ffi.cast('intptr_t', torch.data(labels))),
-      tonumber(ffi.cast('intptr_t', com))
+   nil,
+   nsamples, bs, c, h, w,
+   opt.distort,
+   opt.jitter,
+   opt.receptive,
+   opt.gm,
+   opt.lm,
+   opt.ls,
+   tonumber(ffi.cast('intptr_t', torch.data(shuffle))),
+   tonumber(ffi.cast('intptr_t', torch.data(samples))),
+   tonumber(ffi.cast('intptr_t', torch.data(targets))),
+   tonumber(ffi.cast('intptr_t', torch.data(jpegs))),
+   tonumber(ffi.cast('intptr_t', torch.data(offsets))),
+   tonumber(ffi.cast('intptr_t', torch.data(sizes))),
+   tonumber(ffi.cast('intptr_t', torch.data(labels))),
+   tonumber(ffi.cast('intptr_t', com))
    )
    thread:start(true)
-   
+
    -- keep references alive (the GC collects them otherwise,
    -- because it doesn't know that the thread needs them...)
    dataset.keep = {
@@ -219,8 +219,8 @@ function prepare(dataset)
 
       -- move to CUDA
       --samplesCUDA:copy(samples)
-     -- targetsCUDA:copy(targets)
-      
+      -- targetsCUDA:copy(targets)
+
       -- done
       return samples:clone(), targets:clone()
    end
@@ -233,13 +233,13 @@ end
 
 function load_imagenet_async(data_file, info_file)
 
-	local imData = torch.load(info_file)
-	imData.data = torch.ByteStorage(data_file)
-	imData.n = imData.labels:size(1)
-	imData.nbatches = math.floor(imData.n / opt.batchSize)	
-	prepare(imData)
+   local imData = torch.load(info_file)
+   imData.data = torch.ByteStorage(data_file)
+   imData.n = imData.labels:size(1)
+   imData.nbatches = math.floor(imData.n / opt.batchSize)	
+   prepare(imData)
 
-	return imData
+   return imData
 
 end
 
@@ -247,76 +247,76 @@ end
 --script for filtering imagenet
 function filter_imagenet(src_data_file, src_info_file, dst_data_file, dst_info_file, classes, class_names)
 
-	local d = torch.load(src_info_file)
-	local jpegs = torch.ByteStorage(src_data_file)
+   local d = torch.load(src_info_file)
+   local jpegs = torch.ByteStorage(src_data_file)
 
-	local classes_set = {}
-	local labels_map = {} --map labels, so that they will start from 1
-	local new_class_names = {}
+   local classes_set = {}
+   local labels_map = {} --map labels, so that they will start from 1
+   local new_class_names = {}
 
-	for i = 1, #classes do
-		classes_set[classes[i]] = true
-		labels_map[classes[i]] = i
-		new_class_names[i] = class_names[classes[i]]
-	end
+   for i = 1, #classes do
+      classes_set[classes[i]] = true
+      labels_map[classes[i]] = i
+      new_class_names[i] = class_names[classes[i]]
+   end
 
-	print('calculating size of selected data')
-	local new_data_size = 0
-	local new_data_n = 0
-	local idxs = {}
+   print('calculating size of selected data')
+   local new_data_size = 0
+   local new_data_n = 0
+   local idxs = {}
 
-	for i = 1, d.labels:size(1) do
+   for i = 1, d.labels:size(1) do
 
-		xlua.progress(i, d.labels:size(1))
+      xlua.progress(i, d.labels:size(1))
 
-		local label = d.labels[i]
+      local label = d.labels[i]
 
-		if classes_set[label] then
+      if classes_set[label] then
 
-			new_data_n = new_data_n + 1
-			new_data_size = new_data_size + d.sizes[i]
-			table.insert(idxs, i)
+         new_data_n = new_data_n + 1
+         new_data_size = new_data_size + d.sizes[i]
+         table.insert(idxs, i)
 
-		end
+      end
 
-	end
+   end
 
-	print('number of samples: ' .. new_data_n .. ', data size: ' .. new_data_size)
+   print('number of samples: ' .. new_data_n .. ', data size: ' .. new_data_size)
 
-	print('allocating memory')
-	local new_data = {}
-	new_data.labels = torch.LongTensor(new_data_n)
-	new_data.sizes = torch.LongTensor(new_data_n)
-	new_data.offsets = torch.LongTensor(new_data_n)
-	local t_new_jpegs = torch.ByteTensor(new_data_size)
+   print('allocating memory')
+   local new_data = {}
+   new_data.labels = torch.LongTensor(new_data_n)
+   new_data.sizes = torch.LongTensor(new_data_n)
+   new_data.offsets = torch.LongTensor(new_data_n)
+   local t_new_jpegs = torch.ByteTensor(new_data_size)
 
-	print('copy data')
-	local offset = 1
-	local t_jpegs = torch.ByteTensor(jpegs)
+   print('copy data')
+   local offset = 1
+   local t_jpegs = torch.ByteTensor(jpegs)
 
-	for i = 1, new_data_n do
+   for i = 1, new_data_n do
 
-		xlua.progress(i, new_data_n)
+      xlua.progress(i, new_data_n)
 
-		local j = idxs[i]
-		new_data.labels[i] = labels_map[d.labels[j]]
-		new_data.sizes[i] = d.sizes[j]
-		new_data.offsets[i] = offset
-		offset_old = offset 	
-		offset = offset + new_data.sizes[i]	
-	
-		t_new_jpegs[{{offset_old, offset - 1}}] = t_jpegs[{{d.offsets[j], d.offsets[j] + d.sizes[j] - 1}}]
+      local j = idxs[i]
+      new_data.labels[i] = labels_map[d.labels[j]]
+      new_data.sizes[i] = d.sizes[j]
+      new_data.offsets[i] = offset
+      offset_old = offset 	
+      offset = offset + new_data.sizes[i]	
 
-	end
+      t_new_jpegs[{{offset_old, offset - 1}}] = t_jpegs[{{d.offsets[j], d.offsets[j] + d.sizes[j] - 1}}]
 
-	new_data.classes = new_class_names
+   end
 
-	print('saving data')
-	torch.save(dst_data_file, torch.ByteTensor(new_data_size - 107))
-	local mmjpegs = torch.ByteStorage(dst_data_file, true)
-	mmjpegs:copy(t_new_jpegs:storage())
+   new_data.classes = new_class_names
 
-	torch.save(dst_info_file, new_data)	
+   print('saving data')
+   torch.save(dst_data_file, torch.ByteTensor(new_data_size - 107))
+   local mmjpegs = torch.ByteStorage(dst_data_file, true)
+   mmjpegs:copy(t_new_jpegs:storage())
+
+   torch.save(dst_info_file, new_data)	
 
 end
 ----------------------------------------------------------------------
@@ -324,42 +324,42 @@ end
 --scripts for loading raw resized imagenet images from memory-mapped file
 function load_raw_imagenet(src_data_file, src_info_file)
 
-	print('loading raw imagenet')
+   print('loading raw imagenet')
 
-	local opt = opt or {}
-	opt.width = opt.width or 46
-	opt.height = opt.height or 46
+   local opt = opt or {}
+   opt.width = opt.width or 46
+   opt.height = opt.height or 46
 
-	local d = torch.load(src_info_file)
-	local jpegs = torch.ByteStorage(src_data_file)
+   local d = torch.load(src_info_file)
+   local jpegs = torch.ByteStorage(src_data_file)
 
-	local jpegs_p   = ffi.cast('unsigned char *', ffi.cast('intptr_t', torch.data(jpegs)))
-	local offsets_p = ffi.cast('unsigned long *', ffi.cast('intptr_t', torch.data(d.offsets)))
-	local sizes_p   = ffi.cast('unsigned long *', ffi.cast('intptr_t', torch.data(d.sizes)))
-	local gm = require 'graphicsmagick'
+   local jpegs_p   = ffi.cast('unsigned char *', ffi.cast('intptr_t', torch.data(jpegs)))
+   local offsets_p = ffi.cast('unsigned long *', ffi.cast('intptr_t', torch.data(d.offsets)))
+   local sizes_p   = ffi.cast('unsigned long *', ffi.cast('intptr_t', torch.data(d.sizes)))
+   local gm = require 'graphicsmagick'
 
-	local n = d.labels:size(1)
-	local dt = {}
-	dt.data = torch.FloatTensor(n, 3, opt.height, opt.width)
-	dt.labels = torch.Tensor(n)
+   local n = d.labels:size(1)
+   local dt = {}
+   dt.data = torch.FloatTensor(n, 3, opt.height, opt.width)
+   dt.labels = torch.Tensor(n)
 
-	for i = 1, n do
+   for i = 1, n do
 
-		xlua.progress(i, n)
+      xlua.progress(i, n)
 
-		local offset = tonumber(offsets_p[i-1] - 1)
-		local size = tonumber(sizes_p[i-1])
-		local jpegblob = jpegs_p + offset
-		local sample = gm.Image():fromBlob(jpegblob,size):toTensor('float','RGB','DHW',true)
-		dt.data[i] = image.scale(sample, opt.width, opt.height)	
-		dt.labels[i] = d.labels[i]
+      local offset = tonumber(offsets_p[i-1] - 1)
+      local size = tonumber(sizes_p[i-1])
+      local jpegblob = jpegs_p + offset
+      local sample = gm.Image():fromBlob(jpegblob,size):toTensor('float','RGB','DHW',true)
+      dt.data[i] = image.scale(sample, opt.width, opt.height)	
+      dt.labels[i] = d.labels[i]
 
-	end
+   end
 
-	dt.classes = d.classes
+   dt.classes = d.classes
 
-	return dt 
-		
+   return dt 
+
 end
 
 ----------------------------------------------------------------------
@@ -371,7 +371,7 @@ function show_classes(data, k)
    local ivwi = data.data:size(4)
 
    local disp_ims = {}
-	local nclasses = #data.classes
+   local nclasses = #data.classes
 
    local nims = torch.Tensor(nclasses)
 
@@ -400,9 +400,9 @@ function show_classes(data, k)
 
    end
 
-	for i = 1, nclasses do
-		disp_ims[i] = disp_ims[i][{{1, nims[i]}}]
-	end
+   for i = 1, nclasses do
+      disp_ims[i] = disp_ims[i][{{1, nims[i]}}]
+   end
 
    for i = 1, nclasses do
       image.display({ image = disp_ims[i], legend = data.classes[i], padding=4 })
@@ -412,31 +412,31 @@ end
 -----------------------------------------------------------------------------
 
 function csv2table(csv_file, out_file)
---convert class names from csv file to lua table 
-	
-	local csv = require 'csv'
-	torch.setdefaulttensortype('torch.FloatTensor')
+   --convert class names from csv file to lua table 
 
-	local class_names = {}
+   local csv = require 'csv'
+   torch.setdefaulttensortype('torch.FloatTensor')
 
-	-- load csv
-	local f = csv.open(csv_file)
+   local class_names = {}
 
-	for fields in f:lines() do
+   -- load csv
+   local f = csv.open(csv_file)
 
-		i = tonumber(fields[1])
-		if i then
-			label = fields[3]
-			class_names[i] = label	
-		else
-			print 'skip'
-		end	
+   for fields in f:lines() do
 
-	end
+      i = tonumber(fields[1])
+      if i then
+         label = fields[3]
+         class_names[i] = label	
+      else
+         print 'skip'
+      end	
 
-	-- save tables
-	torch.save(out_file, class_names)
-	print('==> Saved ' .. out_file)
+   end
+
+   -- save tables
+   torch.save(out_file, class_names)
+   print('==> Saved ' .. out_file)
 
 end
 
