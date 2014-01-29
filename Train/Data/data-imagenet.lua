@@ -342,8 +342,8 @@ function create_imagenet_map(new_class, n)
 
 end
 
-function filter_imagenet2(src_data, src_info, dst_data, dst_info, new_classes, imagenet_class_names)
-   
+function filter_imagenet2(src_data, src_info, dst_data, dst_info, new_classes, imagenet_class_names, max_class_size)
+
    --load src data
    print('Loading src data')
    local d = torch.load(src_info)
@@ -358,19 +358,26 @@ function filter_imagenet2(src_data, src_info, dst_data, dst_info, new_classes, i
    local new_data_size = 0 --size of all new images in bytes
    local new_data_n = 0 --number of images in new data
    local idxs = {} --imagenet indexes of new images
+   local class_size = torch.Tensor(#new_classes):zero() --current number of photos in each class
+   
+   torch.manualSeed(1)
+   local shuffle = torch.randperm(d.labels:size(1))
 
    for i = 1, d.labels:size(1) do
 
       xlua.progress(i, d.labels:size(1))
 
-      local label = d.labels[i]
-
-      if map_imagenet_id[label][1] > 0 then
+      local si = shuffle[i]
+      local label = d.labels[si]
+      local i1 = map_imagenet_id[label][1]
+    
+      if i1 > 0 and class_size[i1] < max_class_size then
          --image in new data
 
          new_data_n = new_data_n + 1
-         new_data_size = new_data_size + d.sizes[i]
-         table.insert(idxs, i)
+         new_data_size = new_data_size + d.sizes[si]
+         table.insert(idxs, si)
+         class_size[i1] = class_size[i1] + 1
 
       end
 
@@ -424,7 +431,7 @@ function save_images(ims, fname, w)
    local w = w or 600
    local pad = 4
    local nrow = math.floor(w / (opt.width + pad))
-   local ncol = math.floor(n / nrow) + 1
+   local ncol = math.floor(n / nrow) + 2
    local h = (opt.height + pad) * ncol
    local im = torch.Tensor(3, h, w):zero()
 
@@ -438,6 +445,7 @@ function save_images(ims, fname, w)
          y = y + opt.height + pad
       end
 
+      print(k .. ' ' .. x .. ' ' .. ' ' .. y .. ' ' .. w .. ' ' .. h)
       im[{{}, {y, y + opt.height - 1}, {x, x + opt.width - 1}}] = ims[k]
       x = x + opt.width + pad
 
@@ -524,10 +532,16 @@ function verify_data(data, classes, imagenet_class_names, folder)
       local class_folder = folder .. i .. '_' .. bd[i].name
       os.execute('mkdir -p ' .. class_folder)
       local subclasses = bd[i].subclasses
-      for j = 1, #(bd[i].subclasses) do
+     
+       for j = 1, #(bd[i].subclasses) do
 
-         local fname = class_folder .. '/' .. j .. '_' .. subclasses[j].imagenet_name .. '_' .. subclasses[j].imagenet_id ..'.jpg'
-         save_images(bd[i].subclasses[j].images, fname)         
+       --  print(i .. ' ' .. j)
+         if bd[i].subclasses[j].size > 0 then
+         
+            local fname = class_folder .. '/' .. j .. '_' .. subclasses[j].imagenet_name .. '_' .. subclasses[j].imagenet_id ..'.jpg'
+            save_images(bd[i].subclasses[j].images, fname)         
+
+         end
 
       end
 
