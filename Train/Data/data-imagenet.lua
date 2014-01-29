@@ -249,6 +249,7 @@ function filter_imagenet(src_data_file, src_info_file, dst_data_file, dst_info_f
 
    local d = torch.load(src_info_file)
    local jpegs = torch.ByteStorage(src_data_file)
+   local t_jpegs = torch.ByteTensor(jpegs)
 
    local classes_set = {}
    local labels_map = {} --map labels, so that they will start from 1
@@ -292,7 +293,7 @@ function filter_imagenet(src_data_file, src_info_file, dst_data_file, dst_info_f
 
    print('copy data')
    local offset = 1
-   local t_jpegs = torch.ByteTensor(jpegs)
+
 
    for i = 1, new_data_n do
 
@@ -319,6 +320,220 @@ function filter_imagenet(src_data_file, src_info_file, dst_data_file, dst_info_f
    torch.save(dst_info_file, new_data)
 
 end
+
+function create_imagenet_map(new_class, n)
+--maps imagenet classes to new class table
+--n - number of classes in imagenet
+   
+   --map
+   local m = torch.Tensor(n, 2):zero()
+
+   for i = 1, #new_class do
+      local subclasses = new_class[i][2]
+      for j = 1, #subclasses do
+         local c = subclasses[j]
+         --print(c)
+         m[c][1] = i
+         m[c][2] = j
+      end
+   end 
+
+   return m   
+
+end
+
+function filter_imagenet2(src_data, src_info, dst_data, dst_info, new_classes, imagenet_class_names)
+   
+   --load src data
+   print('Loading src data')
+   local d = torch.load(src_info)
+   local jpegs = torch.ByteStorage(src_data)
+   local t_jpegs = torch.ByteTensor(jpegs)
+
+   --map imagent ids to new class table
+   local map_imagenet_id = create_imagenet_map(new_classes, 1000)
+
+   --calc size of new data
+   print('Calculating size of new data')
+   local new_data_size = 0 --size of all new images in bytes
+   local new_data_n = 0 --number of images in new data
+   local idxs = {} --imagenet indexes of new images
+
+   for i = 1, d.labels:size(1) do
+
+      xlua.progress(i, d.labels:size(1))
+
+      local label = d.labels[i]
+
+      if map_imagenet_id[label][1] > 0 then
+         --image in new data
+
+         new_data_n = new_data_n + 1
+         new_data_size = new_data_size + d.sizes[i]
+         table.insert(idxs, i)
+
+      end
+
+   end
+   print('Number of samples: ' .. new_data_n .. ', data size: ' .. new_data_size)
+
+   --allocate memory for new data
+   print('Allocating memory')
+   local new_data = {}
+   new_data.labels = torch.LongTensor(new_data_n) --new labels
+   new_data.imagenet_labels = torch.LongTensor(new_data_n) --imagenet labels
+   new_data.sizes = torch.LongTensor(new_data_n) --new sizes
+   new_data.offsets = torch.LongTensor(new_data_n) --new offsets
+   local t_new_jpegs = torch.ByteTensor(new_data_size)   
+
+   --copy data
+   print('Copy data')
+   local offset = 1
+
+   for i = 1, new_data_n do
+
+      xlua.progress(i, new_data_n)
+
+      local j = idxs[i]
+      local imagenet_label = d.labels[j]
+      new_data.labels[i] = map_imagenet_id[imagenet_label][1]
+      new_data.imagenet_labels[i] = imagenet_label
+      new_data.sizes[i] = d.sizes[j]
+      new_data.offsets[i] = offset
+      offset_old = offset
+      offset = offset + new_data.sizes[i]
+
+      t_new_jpegs[{{offset_old, offset - 1}}] = t_jpegs[{{d.offsets[j], d.offsets[j] + d.sizes[j] - 1}}]
+
+   end
+   
+   --save data
+   print('Saving data')
+   torch.save(dst_data, torch.ByteTensor(new_data_size - 107))
+   local mmjpegs = torch.ByteStorage(dst_data, true)
+   mmjpegs:copy(t_new_jpegs:storage())
+
+   torch.save(dst_info, new_data)
+
+end
+
+function save_images(ims, fname, w)
+--save several images in one file. 
+
+   local n = ims:size(1)
+   local w = w or 600
+   local pad = 4
+   local nrow = math.floor(w / (opt.width + pad))
+   local ncol = math.floor(n / nrow) + 1
+   local h = (opt.height + pad) * ncol
+   local im = torch.Tensor(3, h, w):zero()
+
+   local x = 1
+   local y = 1
+
+   for k = 1, n do
+      
+      if x + opt.width + pad >= w then
+         x = 1
+         y = y + opt.height + pad
+      end
+
+      im[{{}, {y, y + opt.height - 1}, {x, x + opt.width - 1}}] = ims[k]
+      x = x + opt.width + pad
+
+   end
+   
+   image.save(fname, im)
+
+end
+
+function verify_data(data, classes, imagenet_class_names, folder)
+--saves data in separate folders. Each class in separate folder.
+
+   --map imagent ids to new class table
+   map_imagenet_id = create_imagenet_map(classes, 1000)
+
+   --create new classes structure
+   bd = {}
+   for i = 1, #classes do
+
+      --print(i)
+      local subclasses = classes[i][2]
+      bd[i] = {}
+      bd[i].name = classes[i][1]
+      bd[i].subclasses = {}
+
+      for j = 1, #subclasses do
+
+         local sc = {}
+         sc.imagenet_id = subclasses[j]
+         sc.imagenet_name = imagenet_class_names[sc.imagenet_id]   
+         sc.size = 0
+         sc.current_image = 0
+         bd[i].subclasses[j] = sc         
+
+      end
+
+   end
+
+   --calc number of images in each class
+   print('Calc number of images in each class')
+   for i = 1, data.labels:size(1) do
+
+      xlua.progress(i, data.labels:size(1))
+      local id = data.imagenet_labels[i]
+      local i1 = map_imagenet_id[id][1]
+      local i2 = map_imagenet_id[id][2]
+      if i1 > 0 then
+         bd[i1].subclasses[i2].size = bd[i1].subclasses[i2].size + 1
+      end
+
+   end
+
+   --create tensors for images
+   for i = 1, #classes do
+      local subclasses = bd[i].subclasses
+      for j = 1, #subclasses do
+         
+         bd[i].subclasses[j].images = torch.Tensor(bd[i].subclasses[j].size, 3, opt.height, opt.width):zero()
+      end
+   end
+
+   --copy images
+   print('Copy images')
+   for i = 1, data.labels:size(1) do
+
+      xlua.progress(i, data.labels:size(1))
+      local id = data.imagenet_labels[i]
+      local i1 = map_imagenet_id[id][1]
+      local i2 = map_imagenet_id[id][2]
+      if i1 > 0 then
+         local j = bd[i1].subclasses[i2].current_image + 1
+         bd[i1].subclasses[i2].images[j] = data.data[i]
+         bd[i1].subclasses[i2].current_image  = j
+      end
+      
+   end    
+
+   --save to folder
+   print('Saving images')
+   os.execute('mkdir -p ' .. folder)   
+   for i = 1, #bd do
+
+      xlua.progress(i, #bd)
+      local class_folder = folder .. i .. '_' .. bd[i].name
+      os.execute('mkdir -p ' .. class_folder)
+      local subclasses = bd[i].subclasses
+      for j = 1, #(bd[i].subclasses) do
+
+         local fname = class_folder .. '/' .. j .. '_' .. subclasses[j].imagenet_name .. '_' .. subclasses[j].imagenet_id ..'.jpg'
+         save_images(bd[i].subclasses[j].images, fname)         
+
+      end
+
+   end
+      
+end
 ----------------------------------------------------------------------
 
 --scripts for loading raw resized imagenet images from memory-mapped file
@@ -342,6 +557,7 @@ function load_raw_imagenet(src_data_file, src_info_file)
    local dt = {}
    dt.data = torch.FloatTensor(n, 3, opt.height, opt.width)
    dt.labels = torch.Tensor(n)
+   dt.imagenet_labels = torch.Tensor(n)
 
    for i = 1, n do
 
@@ -353,6 +569,7 @@ function load_raw_imagenet(src_data_file, src_info_file)
       local sample = gm.Image():fromBlob(jpegblob,size):toTensor('float','RGB','DHW',true)
       dt.data[i] = image.scale(sample, opt.width, opt.height)
       dt.labels[i] = d.labels[i]
+      dt.imagenet_labels[i] = d.imagenet_labels[i]
 
    end
 
@@ -363,7 +580,7 @@ function load_raw_imagenet(src_data_file, src_info_file)
 end
 
 ----------------------------------------------------------------------
-function show_classes(data, k)
+function show_classes(data, k, class_names)
 
    local k = k or 100
    local ivch = data.data:size(2)
@@ -371,7 +588,7 @@ function show_classes(data, k)
    local ivwi = data.data:size(4)
 
    local disp_ims = {}
-   local nclasses = #data.classes
+   local nclasses = #class_names
 
    local nims = torch.Tensor(nclasses)
 
@@ -405,7 +622,7 @@ function show_classes(data, k)
    end
 
    for i = 1, nclasses do
-      image.display({ image = disp_ims[i], legend = data.classes[i], padding=4 })
+      image.display({ image = disp_ims[i], legend = class_names[i], padding=4 })
    end
 
 end
