@@ -445,7 +445,6 @@ function save_images(ims, fname, w)
          y = y + opt.height + pad
       end
 
-      print(k .. ' ' .. x .. ' ' .. ' ' .. y .. ' ' .. w .. ' ' .. h)
       im[{{}, {y, y + opt.height - 1}, {x, x + opt.width - 1}}] = ims[k]
       x = x + opt.width + pad
 
