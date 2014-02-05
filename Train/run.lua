@@ -25,8 +25,8 @@ opt.niters = 10
 --save/load data
 opt.save_dir = './results/'
 opt.temp_dir = './temp-data/'
-opt.data_sl = 'load' --save once and then load prepared data from temp file
-opt.mean_sl = 'load' --save once and then load prepared mean from temp file
+opt.data_sl = 'save' --save once and then load prepared data from temp file
+opt.mean_sl = 'save' --save once and then load prepared mean from temp file
 
 --output
 opt.plot = true
@@ -39,7 +39,7 @@ opt.verify_statistics = false
 opt.save = true
 
 opt.cuda = true
-opt.mmload = true --memory mapping when loading data. Use with small RAM
+opt.mmload = false --memory mapping when loading data. Use with small RAM
 opt.seed = 123
 opt.num_threads = 3
 -------------------------------------------------------------------------------
