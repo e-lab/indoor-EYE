@@ -1,14 +1,91 @@
 ----------------------------------------------------------------------
--- Load image net data.
+-- Load imagenet data.
 --
 -- Clement Farabet, Artem Kuharenko
 ----------------------------------------------------------------------
 
 require 'torch'
 require 'llthreads'
-require 'torchffi'
 require 'sys'
 require 'image'
+
+function extract_square_patch(sample)
+
+   -- extract square patch
+   local size = math.min(sample:size(2), sample:size(3))
+   local t = math.floor((sample:size(2) - size)/2 + 1)
+   local l = math.floor((sample:size(3) - size)/2 + 1)
+   local b = t + size - 1
+   local r = l + size - 1
+   sample = sample[{ {},{t,b},{l,r} }]
+
+   return sample
+
+end
+
+function load_raw_imagenet(src_data_file, src_info_file, sfile, fact)
+--load whole resized imagenet images from memory-mapped file
+  
+   print('==> Loading raw imagenet')
+   local dt = {}
+   
+   if fact == 'load' then
+      print('======> Loading data from file')
+      dt = torch.load(opt.temp_dir .. sfile)
+   else
+
+      local opt = opt or {}
+      opt.width = opt.width or 46
+      opt.height = opt.height or 46
+
+      local d = torch.load(src_info_file)
+      local jpegs = torch.ByteStorage(src_data_file)
+
+      local jpegs_p   = ffi.cast('unsigned char *', ffi.cast('intptr_t', torch.data(jpegs)))
+      local offsets_p = ffi.cast('unsigned long *', ffi.cast('intptr_t', torch.data(d.offsets)))
+      local sizes_p   = ffi.cast('unsigned long *', ffi.cast('intptr_t', torch.data(d.sizes)))
+      local gm = require 'graphicsmagick'
+
+      local n = d.labels:size(1)
+      dt.data = torch.FloatTensor(n, 3, opt.height, opt.width)
+      dt.labels = torch.Tensor(n)
+      dt.imagenet_labels = torch.Tensor(n)
+
+      for i = 1, n do
+
+         xlua.progress(i, n)
+
+         local offset = tonumber(offsets_p[i-1] - 1)
+         local size = tonumber(sizes_p[i-1])
+         local jpegblob = jpegs_p + offset
+
+         local sample = gm.Image():fromBlob(jpegblob,size):toTensor('float','RGB','DHW',true)
+         sample = extract_square_patch(sample)
+         sample = image.scale(sample, opt.width, opt.height)
+         
+         for j = 1, opt.ncolors do
+            sample[j]:add(-global_mean[j])
+            sample[j]:div(global_std[j])
+         end
+                  
+         dt.data[i] = sample
+         dt.labels[i] = d.labels[i]
+         dt.imagenet_labels[i] = d.imagenet_labels[i]
+
+      end
+
+      dt.classes = d.classes
+
+      if fact == 'save' then 
+         print('saving data')
+         torch.save(opt.temp_dir .. sfile, dt)
+      end
+
+   end
+
+   return dt 
+
+end
 
 opt = opt or {}
 opt.batchSize = opt.batchSize or 128
@@ -26,8 +103,11 @@ opt.ls = false
 local c,h,w=3, opt.height, opt.width
 local bs = opt.batchSize
 
-function prepare(dataset)
-   -- locals:
+function prepare_async(data_file, info_file)
+
+   local dataset = torch.load(info_file)
+   dataset.data = torch.ByteStorage(data_file)
+   
    local nsamples = dataset.labels:size(1)
    local samples = torch.FloatTensor(bs, c, h, w)
    local targets = torch.FloatTensor(bs)
@@ -35,9 +115,9 @@ function prepare(dataset)
    local offsets = dataset.offsets
    local sizes = dataset.sizes
    local labels = dataset.labels
-   --local shuffle = torch.randperm(nsamples):type('torch.LongTensor')
+   local shuffle = torch.randperm(nsamples):type('torch.LongTensor')
 
-   shuffle = torch.range(1, nsamples):type('torch.LongTensor')
+   --shuffle = torch.range(1, nsamples):type('torch.LongTensor')
 
    -- com is a shared state between the main thread and
    -- the batch thread, it holds two variables:
@@ -45,13 +125,16 @@ function prepare(dataset)
    -- com[1]: whether the batch is used for test or not (1 for test)
    local com = ffi.new('unsigned long[3]', {0,0})
 
-   -- type:
-   --   local samplesCUDA = samples:clone():cuda()
-   --   local targetsCUDA = targets:clone():cuda()
+   local samplesCUDA={}
+   local targetsCUDA={}
+   if opt.cuda then
+      samplesCUDA = samples:clone():cuda()
+      targetsCUDA = targets:clone():cuda()
+   end
 
    -- size:
-   local function size()
-      return math.floor(nsamples/bs)
+   local function nbatches()
+      return math.floor(nsamples / bs)
    end
 
    -- block:
@@ -138,10 +221,10 @@ function prepare(dataset)
             local size = math.min(sample:size(2), sample:size(3))
             local t = math.floor((sample:size(2) - h)/2 + 1)
             local l = math.floor((sample:size(3) - w)/2 + 1)
-            if jitter > 0 and not test then
+           --[[ if jitter > 0 and not test then
                t = t + math.floor(torch.uniform(-jitter/2,jitter/2))
                l = l + math.floor(torch.uniform(-jitter/2,jitter/2))
-            end
+            end--]]
             local b = t + h - 1
             local r = l + w - 1
             sample = sample[{ {},{t,b},{l,r} }]
@@ -157,7 +240,7 @@ function prepare(dataset)
             end
             if local_std then
                local std = samples[i+1]:std()
-               samples[i+1]:div(std)
+               samples[i+1]:div(global_std)
             end
 
             -- label:
@@ -217,110 +300,96 @@ function prepare(dataset)
          sys.sleep(.005)
       end
 
-      -- move to CUDA
-      --samplesCUDA:copy(samples)
-      -- targetsCUDA:copy(targets)
+      if opt.cuda then
 
-      -- done
-      return samples:clone(), targets:clone()
+         -- move to CUDA
+         samplesCUDA:copy(samples)
+         targetsCUDA:copy(targets)
+         return samplesCUDA, targetsCUDA
+
+      else
+         return samples:clone(), targets:clone()
+      end
+
    end
 
    -- augment dataset:
    dataset.copyBatch = copyBatch
    dataset.prepareBatch = prepareBatch
-   dataset.size = size
+   dataset.nbatches = nbatches
+
+   return dataset
+
 end
 
-function load_imagenet_async(data_file, info_file)
+function prepare_sync(data_file, info_file, save_file, save_act)
 
-   local imData = torch.load(info_file)
-   imData.data = torch.ByteStorage(data_file)
-   imData.n = imData.labels:size(1)
-   imData.nbatches = math.floor(imData.n / opt.batchSize)
-   prepare(imData)
+   local data = load_raw_imagenet(data_file, info_file, save_file, save_act)
 
-   return imData
+   local nsamples = data.data:size(1)
+   local samples = torch.FloatTensor(opt.batchSize, data.data:size(2), data.data:size(3), data.data:size(4))
+   local targets = torch.FloatTensor(opt.batchSize)
+   local shuffle = torch.randperm(nsamples):type('torch.LongTensor')
+
+   local samplesCUDA = {}
+   local targetsCUDA = {}
+   if opt.cuda then
+      samplesCUDA = samples:clone():cuda()
+      targetsCUDA = targets:clone():cuda()
+   end
+
+   data.keep = {
+      shuffle = shuffle,
+      samples = samples,
+      targets = targets
+   }
+
+   -- prepare batch
+   local function prepareBatch(idx, istest)
+
+      local bs = opt.batchSize
+
+      for i = 1, bs do
+
+         local j = shuffle[(idx - 1) * bs + i]
+         samples[i] = data.data[j]
+         targets[i] = data.labels[j]
+
+      end
+      
+      if opt.cuda then
+         samplesCUDA:copy(samples)
+         targetsCUDA:copy(targets)
+      end
+
+   end
+
+   -- copy batch
+   local function copyBatch()
+
+      if opt.cuda then
+         return samplesCUDA, targetsCUDA
+      else
+         return samples:clone(), targets:clone()
+      end
+
+   end
+
+   local function nbatches()
+      return math.floor(data.data:size(1) / opt.batchSize)
+   end
+
+   -- augment dataset:
+   data.copyBatch = copyBatch
+   data.prepareBatch = prepareBatch
+   data.nbatches = nbatches
+
+   return data
 
 end
 
 ----------------------------------------------------------------------
 --script for filtering imagenet
-function filter_imagenet(src_data_file, src_info_file, dst_data_file, dst_info_file, classes, class_names)
-
-   local d = torch.load(src_info_file)
-   local jpegs = torch.ByteStorage(src_data_file)
-   local t_jpegs = torch.ByteTensor(jpegs)
-
-   local classes_set = {}
-   local labels_map = {} --map labels, so that they will start from 1
-   local new_class_names = {}
-
-   for i = 1, #classes do
-      classes_set[classes[i]] = true
-      labels_map[classes[i]] = i
-      new_class_names[i] = class_names[classes[i]]
-   end
-
-   print('calculating size of selected data')
-   local new_data_size = 0
-   local new_data_n = 0
-   local idxs = {}
-
-   for i = 1, d.labels:size(1) do
-
-      xlua.progress(i, d.labels:size(1))
-
-      local label = d.labels[i]
-
-      if classes_set[label] then
-
-         new_data_n = new_data_n + 1
-         new_data_size = new_data_size + d.sizes[i]
-         table.insert(idxs, i)
-
-      end
-
-   end
-
-   print('number of samples: ' .. new_data_n .. ', data size: ' .. new_data_size)
-
-   print('allocating memory')
-   local new_data = {}
-   new_data.labels = torch.LongTensor(new_data_n)
-   new_data.sizes = torch.LongTensor(new_data_n)
-   new_data.offsets = torch.LongTensor(new_data_n)
-   local t_new_jpegs = torch.ByteTensor(new_data_size)
-
-   print('copy data')
-   local offset = 1
-
-
-   for i = 1, new_data_n do
-
-      xlua.progress(i, new_data_n)
-
-      local j = idxs[i]
-      new_data.labels[i] = labels_map[d.labels[j]]
-      new_data.sizes[i] = d.sizes[j]
-      new_data.offsets[i] = offset
-      offset_old = offset
-      offset = offset + new_data.sizes[i]
-
-      t_new_jpegs[{{offset_old, offset - 1}}] = t_jpegs[{{d.offsets[j], d.offsets[j] + d.sizes[j] - 1}}]
-
-   end
-
-   new_data.classes = new_class_names
-
-   print('saving data')
-   torch.save(dst_data_file, torch.ByteTensor(new_data_size - 107))
-   local mmjpegs = torch.ByteStorage(dst_data_file, true)
-   mmjpegs:copy(t_new_jpegs:storage())
-
-   torch.save(dst_info_file, new_data)
-
-end
-
 function create_imagenet_map(new_class, n)
 --maps imagenet classes to new class table
 --n - number of classes in imagenet
@@ -342,7 +411,7 @@ function create_imagenet_map(new_class, n)
 
 end
 
-function filter_imagenet2(src_data, src_info, dst_data, dst_info, new_classes, imagenet_class_names, max_class_size)
+function filter_imagenet(src_data, src_info, dst_data, dst_info, new_classes, imagenet_class_names, max_class_size)
 
    --load src data
    print('Loading src data')
@@ -547,52 +616,7 @@ function verify_data(data, classes, imagenet_class_names, folder)
    end
       
 end
-----------------------------------------------------------------------
 
---scripts for loading raw resized imagenet images from memory-mapped file
-function load_raw_imagenet(src_data_file, src_info_file)
-
-   print('loading raw imagenet')
-
-   local opt = opt or {}
-   opt.width = opt.width or 46
-   opt.height = opt.height or 46
-
-   local d = torch.load(src_info_file)
-   local jpegs = torch.ByteStorage(src_data_file)
-
-   local jpegs_p   = ffi.cast('unsigned char *', ffi.cast('intptr_t', torch.data(jpegs)))
-   local offsets_p = ffi.cast('unsigned long *', ffi.cast('intptr_t', torch.data(d.offsets)))
-   local sizes_p   = ffi.cast('unsigned long *', ffi.cast('intptr_t', torch.data(d.sizes)))
-   local gm = require 'graphicsmagick'
-
-   local n = d.labels:size(1)
-   local dt = {}
-   dt.data = torch.FloatTensor(n, 3, opt.height, opt.width)
-   dt.labels = torch.Tensor(n)
-   dt.imagenet_labels = torch.Tensor(n)
-
-   for i = 1, n do
-
-      xlua.progress(i, n)
-
-      local offset = tonumber(offsets_p[i-1] - 1)
-      local size = tonumber(sizes_p[i-1])
-      local jpegblob = jpegs_p + offset
-      local sample = gm.Image():fromBlob(jpegblob,size):toTensor('float','RGB','DHW',true)
-      dt.data[i] = image.scale(sample, opt.width, opt.height)
-      dt.labels[i] = d.labels[i]
-      dt.imagenet_labels[i] = d.imagenet_labels[i]
-
-   end
-
-   dt.classes = d.classes
-
-   return dt 
-
-end
-
-----------------------------------------------------------------------
 function show_classes(data, k, class_names)
 
    local k = k or 100
@@ -669,5 +693,36 @@ function csv2table(csv_file, out_file)
    print('==> Saved ' .. out_file)
 
 end
+
+function nilling(module)
+   module.gradBias   = nil
+   if module.finput then module.finput = torch.Tensor() end
+   module.gradWeight = nil
+   module.output     = torch.Tensor()
+   module.fgradInput = nil
+   module.gradInput  = nil
+end
+
+function netLighter(network)
+   nilling(network)
+   if network.modules then
+      for _,a in ipairs(network.modules) do
+         netLighter(a)
+      end
+   end
+end
+
+function saveNet(model, filename, verbose)
+   --   local filename = paths.concat(opt. name)
+   if verbose then
+      print('==> saving model to '..filename)
+   end
+   modelToSave = model:clone()
+   netLighter(modelToSave)
+   torch.save(filename, modelToSave)
+end
+
+
+
 
 
