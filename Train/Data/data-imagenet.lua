@@ -29,7 +29,7 @@ function load_raw_imagenet(src_data_file, src_info_file, sfile, fact)
    print('==> Loading raw imagenet')
    local dt = {}
    
-   if fact == 'load' then
+   if fact == 'load' and paths.filep(opt.temp_dir .. sfile) then
       print('======> Loading data from file')
       dt = torch.load(opt.temp_dir .. sfile)
    else
