@@ -9,7 +9,7 @@ require 'pl'
 
 --lapp doesn't work with qlua...
 opt = {}
-opt.width = 32
+opt.width = 46
 opt.height = opt.width
 opt.ncolors = 3
 
@@ -20,13 +20,13 @@ opt.weightDecay = 0
 opt.momentum = 0
 opt.batchSize = 32
 opt.classifier_size = 32
-opt.niters = 10
+opt.niters = 20
 
 --save/load data
 opt.save_dir = './results/'
 opt.temp_dir = './temp-data/'
-opt.data_sl = 'save' --save once and then load prepared data from temp file
-opt.mean_sl = 'save' --save once and then load prepared mean from temp file
+opt.data_sl = 'load' --save once and then load prepared data from temp file
+opt.mean_sl = 'load' --save once and then load prepared mean from temp file
 
 --output
 opt.plot = true
@@ -114,6 +114,6 @@ function run(trainData, testData)
 end
 
 train_acc, test_acc = run(trainData, testData)
-print(string.format('==> Train accuracy = %.3f; ', train_acc) .. '%')
-print(string.format('==> Test accuracy = %.3f; ', test_acc) .. '%')
+print(string.format('==> Train accuracy = %.3f', train_acc) .. '%')
+print(string.format('==> Test accuracy = %.3f', test_acc) .. '%')
 

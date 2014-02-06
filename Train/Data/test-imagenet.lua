@@ -31,7 +31,7 @@ for i = 1, #indoor_classes do class_names[i] = indoor_classes[i][1] end
 
 --filtering example
 max_class_size = 50 --max number of images in each class
---filter_imagenet2(src_data, src_info, dst_data, dst_info, indoor_classes, imagenet_class_names, max_class_size)
+filter_imagenet(src_data, src_info, dst_data, dst_info, indoor_classes, imagenet_class_names, max_class_size)
 
 --load raw resized photos
 opt = {}
