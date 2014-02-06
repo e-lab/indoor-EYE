@@ -19,6 +19,7 @@ The repository tree, at the moment, is the following
 ### Main folders and files
  - [`Demo`](Demo): hosts the demonstration routine, runnable on images or videos 
  - [`Train`](Train): encloses the main program, `run`, which trains the network with several specificable options
+ - [`Train/Data`](Train/Data): scripts for preparing and processing imagenet data
  - [`README.md`](README.md): this file :)
 
 ### Local temporary folders and files
