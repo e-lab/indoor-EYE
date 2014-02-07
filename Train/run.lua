@@ -7,6 +7,7 @@ require 'torch'
 require 'nn'
 require 'torchffi'
 require 'pl'
+require 'usefulFunctions'
 
 --lapp doesn't work with qlua...
 opt = {}
@@ -27,11 +28,11 @@ opt.niters = 20
 opt.save_dir = './results/'
 opt.temp_dir = './temp-data/'
 --Be carefull!!! you need to save data when you change data options like width 
-opt.data_sl = 'load' --save once and then load prepared data from temp file
-opt.mean_sl = 'load' --save once and then load prepared mean from temp file
+opt.data_sl = 'save' --save once and then load prepared data from temp file
+opt.mean_sl = 'save' --save once and then load prepared mean from temp file
 
 --output
-opt.plot = true
+opt.plot = false
 opt.verbose = true
 opt.confusion_matrix_tab = 3 --number of tabs between numbers in confusion matrix
 opt.print_confusion_matrix = false
@@ -59,7 +60,7 @@ dofile('Data/data-process.lua') --data scripts
 os.execute('mkdir -p ' .. opt.temp_dir) --create folder for temporary data 
 -------------------------------------------------------------------------------
 
-data_folder = '/home/artem/datasets/imagenet2012/'
+data_folder = eex.datasetsPath() .. 'imagenet2012/'
 train_data_file = data_folder .. 'train-indoor-data-1300.t7'
 train_info_file = data_folder .. 'train-indoor-info-1300.t7'
 test_data_file = data_folder .. 'test-indoor-data-50.t7'

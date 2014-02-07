@@ -3,6 +3,22 @@
 -- Artem Kuharenko
 -------------------------------------------------------------------------------
 
+function get_output_size(model)
+
+   local tb = torch.Tensor(opt.batchSize, opt.ncolors, opt.height, opt.width)
+   local res = {}
+   
+   if opt.cuda then
+      local tb_cuda = tb:cuda()
+      model:cuda()
+      res = model:forward(tb_cuda)
+   else
+      res = model:forward(tb)
+   end   
+   return res:size(3)
+
+end
+
 function get_model1()
 
    local mapsizes = {[0] = opt.width}
@@ -46,7 +62,7 @@ function get_model1()
 
    local nconnections = {[0]=0}
    for k = 1, nlayers do
-      nconnections[k] = nfeatures[k] * filtsizes[k]^2 * nfeatures[k - 1] * nfeatures[k] * (mapsizes[k] - filtsizes[k] + 1) ^ 2
+      nconnections[k] = filtsizes[k]^2 * nfeatures[k - 1] * nfeatures[k] * (mapsizes[k] - filtsizes[k] + 1) ^ 2
    end
    
    for i = 0,#mapsizes do
@@ -64,6 +80,7 @@ function get_model1()
       model:add(nn.Transpose({1,4},{1,3},{1,2}))
    end
 
+   local realsizes = {[0]=opt.width}
    --stages 1..nlayers
    for i = 1, nlayers do
       --add layer i: convolution, maxpooling, threshold
@@ -80,10 +97,21 @@ function get_model1()
       end
       model:add(nn.Threshold(0,0))
 
+      realsizes[i] = get_output_size(model)
+
    end
    
    if opt.cuda then
       model:add(nn.Transpose({4,1},{4,2},{4,3}))
+   end
+
+   for i = 0, nlayers do
+    
+     print(string.format(
+         '==> model layer %02d  -  real extent: %03dx%03d  |  unique features: %04d  |  hidden units: %05d  |  connections: %05d',
+         i, realsizes[i], realsizes[i], nfeatures[i], nunits[i], nconnections[i]
+      ))
+  
    end
 
    --linear 
