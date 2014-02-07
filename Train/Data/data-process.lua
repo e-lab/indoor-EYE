@@ -59,7 +59,7 @@ function get_global_mean_async(data_file, info_file, sdir, save_act, verbose)
    local std = torch.Tensor(opt.ncolors):zero()
    local sfile = sdir .. 'preproc.t7'
 
-   if save_act == 'load' then
+   if save_act == 'load' and paths.filep(sfile) then
       
       if verbose then
          print('==> Loading mean and std from file ' .. sfile)
