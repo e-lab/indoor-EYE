@@ -158,7 +158,7 @@ function prepare_async(data_file, info_file)
       local distorton = args[7]
       local jitter = args[8]
       local receptive = args[9]
-      local global_mean = args[10]
+--      local global_mean = args[10]
       local local_mean = args[11]
       local local_std = args[12]
       local shuffle_p = ffi.cast('unsigned long *', args[13])
@@ -169,7 +169,13 @@ function prepare_async(data_file, info_file)
       local sizes_p   = ffi.cast('unsigned long *', args[18])
       local labels_p  = ffi.cast('unsigned long *', args[19])
       local com       = ffi.cast('unsigned long *', args[20])
-
+      local gm_p      = ffi.cast('float *', args[21])
+      local std_p      = ffi.cast('float *', args[22])
+     
+      local gmStorage = torch.FloatStorage(c, tonumber(ffi.cast('intptr_t', gm_p)))
+      local global_mean = torch.FloatTensor(gmStorage)
+      local stdStorage = torch.FloatStorage(c, tonumber(ffi.cast('intptr_t', std_p)))
+      local global_std = torch.FloatTensor(stdStorage)
 
       -- map samples batch to given pointer:
       local samplesStorage = torch.FloatStorage(bs*c*h*w, tonumber(ffi.cast('intptr_t',samples_p)))
@@ -233,14 +239,23 @@ function prepare_async(data_file, info_file)
             samples[i+1] = sample
 
             -- normalize sample
-            samples[i+1]:add(-global_mean) 
+            --print(global_std)
+            
+            for j = 1, c do
+               samples[i+1][j]:add(-global_mean[j]) 
+               samples[i+1][j]:div(global_std[j]) 
+            end   
+            --a.a=a            
+            --samples[i+1]:div(global_std)
+
             if local_mean then
                local mean = samples[i+1]:mean()
                samples[i+1]:add(-mean) 
             end
+
             if local_std then
                local std = samples[i+1]:std()
-               samples[i+1]:div(global_std)
+               samples[i+1]:div(std)
             end
 
             -- label:
@@ -269,7 +284,9 @@ function prepare_async(data_file, info_file)
    tonumber(ffi.cast('intptr_t', torch.data(offsets))),
    tonumber(ffi.cast('intptr_t', torch.data(sizes))),
    tonumber(ffi.cast('intptr_t', torch.data(labels))),
-   tonumber(ffi.cast('intptr_t', com))
+   tonumber(ffi.cast('intptr_t', com)),
+   tonumber(ffi.cast('intptr_t', torch.data(global_mean))),
+   tonumber(ffi.cast('intptr_t', torch.data(global_std)))
    )
    thread:start(true)
 

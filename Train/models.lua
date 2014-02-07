@@ -65,7 +65,7 @@ function get_model1()
       nconnections[k] = filtsizes[k]^2 * nfeatures[k - 1] * nfeatures[k] * (mapsizes[k] - filtsizes[k] + 1) ^ 2
    end
    
-   for i = 0,#mapsizes do
+--[[   for i = 0,#mapsizes do
     
      print(string.format(
          '==> model layer %02d  -  spatial extent: %03dx%03d  |  unique features: %04d  |  hidden units: %05d  |  connections: %05d',
@@ -73,6 +73,7 @@ function get_model1()
       ))
   
    end
+--]]
 
    local model = nn.Sequential()
    
@@ -86,7 +87,7 @@ function get_model1()
       --add layer i: convolution, maxpooling, threshold
       if opt.cuda then
 
-         model:add(nn.SpatialConvolutionCUDA(nfeatures[i - 1], nfeatures[i], filtsizes[i], filtsizes[i]))
+         model:add(nn.SpatialConvolutionCUDA(nfeatures[i - 1], nfeatures[i], filtsizes[i], filtsizes[i], strides[i], strides[i], paddings[i]))
          model:add(nn.SpatialMaxPoolingCUDA(poolsizes[i], poolsizes[i], poolsizes[i], poolsizes[i]))
 
       else
@@ -108,7 +109,7 @@ function get_model1()
    for i = 0, nlayers do
     
      print(string.format(
-         '==> model layer %02d  -  real extent: %03dx%03d  |  unique features: %04d  |  hidden units: %05d  |  connections: %05d',
+         '==> model layer %02d  -  spatial extent: %03dx%03d  |  unique features: %04d  |  hidden units: %05d  |  connections: %05d',
          i, realsizes[i], realsizes[i], nfeatures[i], nunits[i], nconnections[i]
       ))
   
