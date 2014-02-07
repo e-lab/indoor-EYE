@@ -1,3 +1,7 @@
+-------------------------------------------------------------------------------
+-- Data processing functions
+-- Artem Kuharenko
+-------------------------------------------------------------------------------
 
 function print_sizes(data, text, verbose)
 --print dimensions of data

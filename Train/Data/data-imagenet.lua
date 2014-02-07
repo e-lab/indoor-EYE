@@ -1,7 +1,7 @@
 ----------------------------------------------------------------------
--- Load imagenet data.
---
--- Clement Farabet, Artem Kuharenko
+-- Load imagenet dataset
+-- Artem Kuharenko
+-- Use Clement Farabet scripts
 ----------------------------------------------------------------------
 
 require 'torch'
