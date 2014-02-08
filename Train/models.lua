@@ -7,14 +7,14 @@ function get_output_size(model)
 
    local tb = torch.Tensor(opt.batchSize, opt.ncolors, opt.height, opt.width)
    local res = {}
-   
+
    if opt.cuda then
       local tb_cuda = tb:cuda()
       model:cuda()
       res = model:forward(tb_cuda)
    else
       res = model:forward(tb)
-   end   
+   end
    return res:size(3)
 
 end
@@ -64,20 +64,20 @@ function get_model1()
    for k = 1, nlayers do
       nconnections[k] = filtsizes[k]^2 * nfeatures[k - 1] * nfeatures[k] * (mapsizes[k] - filtsizes[k] + 1) ^ 2
    end
-   
---[[   for i = 0,#mapsizes do
-    
-     print(string.format(
-         '==> model layer %02d  -  spatial extent: %03dx%03d  |  unique features: %04d  |  hidden units: %05d  |  connections: %05d',
-         i, mapsizes[i], mapsizes[i], nfeatures[i], nunits[i], nconnections[i]
-      ))
-  
+
+   --[[   for i = 0,#mapsizes do
+
+   print(string.format(
+   '==> model layer %02d  -  spatial extent: %03dx%03d  |  unique features: %04d  |  hidden units: %05d  |  connections: %05d',
+   i, mapsizes[i], mapsizes[i], nfeatures[i], nunits[i], nconnections[i]
+   ))
+
    end
---]]
+   --]]
 
    local model = nn.Sequential()
-   
-   if opt.cuda then 
+
+   if opt.cuda then
       model:add(nn.Transpose({1,4},{1,3},{1,2}))
    end
 
@@ -91,7 +91,7 @@ function get_model1()
          model:add(nn.SpatialMaxPoolingCUDA(poolsizes[i], poolsizes[i], poolsizes[i], poolsizes[i]))
 
       else
-      
+
          model:add(nn.SpatialConvolution(nfeatures[i - 1], nfeatures[i], filtsizes[i], filtsizes[i]))
          model:add(nn.SpatialMaxPooling(poolsizes[i], poolsizes[i], poolsizes[i], poolsizes[i]))
 
@@ -101,29 +101,29 @@ function get_model1()
       realsizes[i] = get_output_size(model)
 
    end
-   
+
    if opt.cuda then
       model:add(nn.Transpose({4,1},{4,2},{4,3}))
    end
 
    for i = 0, nlayers do
-    
-     print(string.format(
-         '==> model layer %02d  -  spatial extent: %03dx%03d  |  unique features: %04d  |  hidden units: %05d  |  connections: %05d',
-         i, realsizes[i], realsizes[i], nfeatures[i], nunits[i], nconnections[i]
+
+      print(string.format(
+      '==> model layer %02d  -  spatial extent: %03dx%03d  |  unique features: %04d  |  hidden units: %05d  |  connections: %05d',
+      i, realsizes[i], realsizes[i], nfeatures[i], nunits[i], nconnections[i]
       ))
-  
+
    end
 
-   --linear 
+   --linear
    model:add(nn.Reshape(nunits[nlayers]))
    model:add(nn.Linear(nunits[nlayers], opt.classifier_size))
    model:add(nn.Threshold())
-   
+
    --linear (classifier)
    model:add(nn.Linear(opt.classifier_size, #classes))
 
-	--log probabilities
+   --log probabilities
    model:add(nn.LogSoftMax())
 
    -- Loss: NLL

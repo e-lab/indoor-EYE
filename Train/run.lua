@@ -1,15 +1,18 @@
 -------------------------------------------------------------------------------
 -- Main script for training neural network
 -- Artem Kuharenko
+-- Alfredo Canziani, Feb 2014
 -------------------------------------------------------------------------------
 
+-- Require packages -----------------------------------------------------------
 require 'torch'
 require 'nn'
 require 'torchffi'
 require 'pl'
 require 'usefulFunctions'
 
---lapp doesn't work with qlua...
+-- Options --------------------------------------------------------------------
+--lapp doesn't work with qlua... I guess this has to be fixed -> TODO
 opt = {}
 opt.width = 46
 opt.height = opt.width
@@ -42,18 +45,44 @@ opt.verify_statistics = false
 opt.save = true
 
 opt.cuda = true
+opt.devid = 1 -- device ID (if using CUDA)
 opt.mmload = false --memory mapping when loading data. Use with small RAM
 opt.seed = 123
 opt.num_threads = 3
--------------------------------------------------------------------------------
 
-if opt.cuda then
-   require 'cutorch'
-   require 'cunn'
+-- Title ----------------------------------------------------------------------
+if opt.verbose then print [[
+********************************************************************************
+>>>>>>>>>>>>>>>>>>>>> indoor-NET: training on imageNet <<<<<<<<<<<<<<<<<<<<<<<<<
+********************************************************************************
+]]
+
+-- Print options summary ------------------------------------------------------
+   print('==> Options:')
+   for a,b in pairs(opt) do print('     + ' .. a .. ':', b) end
+   print()
 end
 
+-- Training with GPU (if CUDA) ------------------------------------------------
+if opt.cuda then
+   if opt.verbose then
+      print('==> switching to CUDA')
+   end
+   require 'cutorch'
+   require 'cunn'
+   cutorch.setDevice(opt.devid)
+   if opt.verbose then
+      print('==> using GPU #' .. cutorch.getDevice())
+      print(cutorch.getDeviceProperties(opt.devid))
+   end
+end
+
+-- Loading functions ----------------------------------------------------------
+if opt.verbose then print('==> Loading <training> and <testing> functions') end
 dofile('train-and-test.lua')
+if opt.verbose then print('==> Loading <model> functions') end
 dofile('models.lua')
+if opt.verbose then print('==> Loading <data> functions') end
 dofile('Data/data-imagenet.lua') --imagenet data scripts
 dofile('Data/data-process.lua') --data scripts
 

@@ -1,6 +1,7 @@
 ----------------------------------------------------------------------
 -- Load imagenet dataset
 -- Artem Kuharenko
+-- Alfredo Canziani, Feb 2014
 -- Use Clement Farabet scripts
 ----------------------------------------------------------------------
 
@@ -24,11 +25,11 @@ function extract_square_patch(sample)
 end
 
 function load_raw_imagenet(src_data_file, src_info_file, sfile, fact)
---load whole resized imagenet images from memory-mapped file
-  
+   --load whole resized imagenet images from memory-mapped file
+
    print('==> Loading raw imagenet')
    local dt = {}
-   
+
    if fact == 'load' and paths.filep(opt.temp_dir .. sfile) then
       print('======> Loading data from file')
       dt = torch.load(opt.temp_dir .. sfile)
@@ -62,12 +63,12 @@ function load_raw_imagenet(src_data_file, src_info_file, sfile, fact)
          local sample = gm.Image():fromBlob(jpegblob,size):toTensor('float','RGB','DHW',true)
          sample = extract_square_patch(sample)
          sample = image.scale(sample, opt.width, opt.height)
-         
+
          for j = 1, opt.ncolors do
             sample[j]:add(-global_mean[j])
             sample[j]:div(global_std[j])
          end
-                  
+
          dt.data[i] = sample
          dt.labels[i] = d.labels[i]
          dt.imagenet_labels[i] = d.imagenet_labels[i]
@@ -76,14 +77,14 @@ function load_raw_imagenet(src_data_file, src_info_file, sfile, fact)
 
       dt.classes = d.classes
 
-      if fact == 'save' then 
+      if fact == 'save' then
          print('saving data')
          torch.save(opt.temp_dir .. sfile, dt)
       end
 
    end
 
-   return dt 
+   return dt
 
 end
 
@@ -107,7 +108,7 @@ function prepare_async(data_file, info_file)
 
    local dataset = torch.load(info_file)
    dataset.data = torch.ByteStorage(data_file)
-   
+
    local nsamples = dataset.labels:size(1)
    local samples = torch.FloatTensor(bs, c, h, w)
    local targets = torch.FloatTensor(bs)
@@ -158,7 +159,7 @@ function prepare_async(data_file, info_file)
       local distorton = args[7]
       local jitter = args[8]
       local receptive = args[9]
---      local global_mean = args[10]
+      --      local global_mean = args[10]
       local local_mean = args[11]
       local local_std = args[12]
       local shuffle_p = ffi.cast('unsigned long *', args[13])
@@ -171,7 +172,7 @@ function prepare_async(data_file, info_file)
       local com       = ffi.cast('unsigned long *', args[20])
       local gm_p      = ffi.cast('float *', args[21])
       local std_p      = ffi.cast('float *', args[22])
-     
+
       local gmStorage = torch.FloatStorage(c, tonumber(ffi.cast('intptr_t', gm_p)))
       local global_mean = torch.FloatTensor(gmStorage)
       local stdStorage = torch.FloatStorage(c, tonumber(ffi.cast('intptr_t', std_p)))
@@ -227,9 +228,9 @@ function prepare_async(data_file, info_file)
             local size = math.min(sample:size(2), sample:size(3))
             local t = math.floor((sample:size(2) - h)/2 + 1)
             local l = math.floor((sample:size(3) - w)/2 + 1)
-           --[[ if jitter > 0 and not test then
-               t = t + math.floor(torch.uniform(-jitter/2,jitter/2))
-               l = l + math.floor(torch.uniform(-jitter/2,jitter/2))
+            --[[ if jitter > 0 and not test then
+            t = t + math.floor(torch.uniform(-jitter/2,jitter/2))
+            l = l + math.floor(torch.uniform(-jitter/2,jitter/2))
             end--]]
             local b = t + h - 1
             local r = l + w - 1
@@ -240,17 +241,17 @@ function prepare_async(data_file, info_file)
 
             -- normalize sample
             --print(global_std)
-            
+
             for j = 1, c do
-               samples[i+1][j]:add(-global_mean[j]) 
-               samples[i+1][j]:div(global_std[j]) 
-            end   
-            --a.a=a            
+               samples[i+1][j]:add(-global_mean[j])
+               samples[i+1][j]:div(global_std[j])
+            end
+            --a.a=a
             --samples[i+1]:div(global_std)
 
             if local_mean then
                local mean = samples[i+1]:mean()
-               samples[i+1]:add(-mean) 
+               samples[i+1]:add(-mean)
             end
 
             if local_std then
@@ -373,7 +374,7 @@ function prepare_sync(data_file, info_file, save_file, save_act)
          targets[i] = data.labels[j]
 
       end
-      
+
       if opt.cuda then
          samplesCUDA:copy(samples)
          targetsCUDA:copy(targets)
@@ -408,9 +409,9 @@ end
 ----------------------------------------------------------------------
 --script for filtering imagenet
 function create_imagenet_map(new_class, n)
---maps imagenet classes to new class table
---n - number of classes in imagenet
-   
+   --maps imagenet classes to new class table
+   --n - number of classes in imagenet
+
    --map
    local m = torch.Tensor(n, 2):zero()
 
@@ -422,9 +423,9 @@ function create_imagenet_map(new_class, n)
          m[c][1] = i
          m[c][2] = j
       end
-   end 
+   end
 
-   return m   
+   return m
 
 end
 
@@ -445,7 +446,7 @@ function filter_imagenet(src_data, src_info, dst_data, dst_info, new_classes, im
    local new_data_n = 0 --number of images in new data
    local idxs = {} --imagenet indexes of new images
    local class_size = torch.Tensor(#new_classes):zero() --current number of photos in each class
-   
+
    torch.manualSeed(1)
    local shuffle = torch.randperm(d.labels:size(1))
 
@@ -456,7 +457,7 @@ function filter_imagenet(src_data, src_info, dst_data, dst_info, new_classes, im
       local si = shuffle[i]
       local label = d.labels[si]
       local i1 = map_imagenet_id[label][1]
-    
+
       if i1 > 0 and class_size[i1] < max_class_size then
          --image in new data
 
@@ -477,7 +478,7 @@ function filter_imagenet(src_data, src_info, dst_data, dst_info, new_classes, im
    new_data.imagenet_labels = torch.LongTensor(new_data_n) --imagenet labels
    new_data.sizes = torch.LongTensor(new_data_n) --new sizes
    new_data.offsets = torch.LongTensor(new_data_n) --new offsets
-   local t_new_jpegs = torch.ByteTensor(new_data_size)   
+   local t_new_jpegs = torch.ByteTensor(new_data_size)
 
    --copy data
    print('Copy data')
@@ -499,7 +500,7 @@ function filter_imagenet(src_data, src_info, dst_data, dst_info, new_classes, im
       t_new_jpegs[{{offset_old, offset - 1}}] = t_jpegs[{{d.offsets[j], d.offsets[j] + d.sizes[j] - 1}}]
 
    end
-   
+
    --save data
    print('Saving data')
    torch.save(dst_data, torch.ByteTensor(new_data_size - 107))
@@ -511,7 +512,7 @@ function filter_imagenet(src_data, src_info, dst_data, dst_info, new_classes, im
 end
 
 function save_images(ims, fname, w)
---save several images in one file. 
+   --save several images in one file.
 
    local n = ims:size(1)
    local w = w or 600
@@ -525,7 +526,7 @@ function save_images(ims, fname, w)
    local y = 1
 
    for k = 1, n do
-      
+
       if x + opt.width + pad >= w then
          x = 1
          y = y + opt.height + pad
@@ -535,13 +536,13 @@ function save_images(ims, fname, w)
       x = x + opt.width + pad
 
    end
-   
+
    image.save(fname, im)
 
 end
 
 function verify_data(data, classes, imagenet_class_names, folder)
---saves data in separate folders. Each class in separate folder.
+   --saves data in separate folders. Each class in separate folder.
 
    --map imagent ids to new class table
    map_imagenet_id = create_imagenet_map(classes, 1000)
@@ -560,10 +561,10 @@ function verify_data(data, classes, imagenet_class_names, folder)
 
          local sc = {}
          sc.imagenet_id = subclasses[j]
-         sc.imagenet_name = imagenet_class_names[sc.imagenet_id]   
+         sc.imagenet_name = imagenet_class_names[sc.imagenet_id]
          sc.size = 0
          sc.current_image = 0
-         bd[i].subclasses[j] = sc         
+         bd[i].subclasses[j] = sc
 
       end
 
@@ -587,7 +588,7 @@ function verify_data(data, classes, imagenet_class_names, folder)
    for i = 1, #classes do
       local subclasses = bd[i].subclasses
       for j = 1, #subclasses do
-         
+
          bd[i].subclasses[j].images = torch.Tensor(bd[i].subclasses[j].size, 3, opt.height, opt.width):zero()
       end
    end
@@ -605,33 +606,33 @@ function verify_data(data, classes, imagenet_class_names, folder)
          bd[i1].subclasses[i2].images[j] = data.data[i]
          bd[i1].subclasses[i2].current_image  = j
       end
-      
-   end    
+
+   end
 
    --save to folder
    print('Saving images')
-   os.execute('mkdir -p ' .. folder)   
+   os.execute('mkdir -p ' .. folder)
    for i = 1, #bd do
 
       xlua.progress(i, #bd)
       local class_folder = folder .. i .. '_' .. bd[i].name
       os.execute('mkdir -p ' .. class_folder)
       local subclasses = bd[i].subclasses
-     
-       for j = 1, #(bd[i].subclasses) do
 
-       --  print(i .. ' ' .. j)
+      for j = 1, #(bd[i].subclasses) do
+
+         --  print(i .. ' ' .. j)
          if bd[i].subclasses[j].size > 0 then
-         
+
             local fname = class_folder .. '/' .. j .. '_' .. subclasses[j].imagenet_name .. '_' .. subclasses[j].imagenet_id ..'.jpg'
-            save_images(bd[i].subclasses[j].images, fname)         
+            save_images(bd[i].subclasses[j].images, fname)
 
          end
 
       end
 
    end
-      
+
 end
 
 function show_classes(data, k, class_names)
@@ -683,7 +684,7 @@ end
 -----------------------------------------------------------------------------
 
 function csv2table(csv_file, out_file)
-   --convert class names from csv file to lua table 
+   --convert class names from csv file to lua table
 
    local csv = require 'csv'
    torch.setdefaulttensortype('torch.FloatTensor')
@@ -738,8 +739,3 @@ function saveNet(model, filename, verbose)
    netLighter(modelToSave)
    torch.save(filename, modelToSave)
 end
-
-
-
-
-
