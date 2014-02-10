@@ -1,0 +1,7 @@
+# Folders
+Train/results/
+Train/temp-data/
+
+# Files
+*.sw*
+.DS_Store
