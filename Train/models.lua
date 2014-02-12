@@ -66,7 +66,12 @@ function get_model1()
       mapsizes[i] = pool_layer.output:size(2)
       nhiddens[i] = conv_layer.weight:size(2) * conv_layer.weight:size(3) * conv_layer.weight:size(4)
       nconnections[i] = conv_layer.weight:size(1) * nhiddens[i] * (mapsizes[i - 1] - filtsizes[i] + 1) ^ 2
-      nouts[i] = pool_layer.output:size(2) * pool_layer.output:size(3) * nfeatures[i]
+
+      if opt.cuda then 
+         nouts[i] = pool_layer.output:size(2) * pool_layer.output:size(3) * nfeatures[i]
+      else
+         nouts[i] = pool_layer.output:size(3) * pool_layer.output:size(4) * nfeatures[i]
+      end
 
    end
 
