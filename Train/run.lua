@@ -14,43 +14,50 @@ require 'usefulFunctions'
 
 -- Options --------------------------------------------------------------------
 --lapp doesn't work with qlua... I guess this has to be fixed -> TODO
-opt = {}
-opt.width = 46
-opt.height = opt.width
-opt.ncolors = 3
+opt = lapp[[
+********************************************************************************
+>>>>>>>>>>>>>>>>>>>>> indoor-NET: training on imageNet <<<<<<<<<<<<<<<<<<<<<<<<<
+********************************************************************************
 
---learning
-opt.learningRate = 5e-3
-opt.learningRateDecay = 1e-7
-opt.weightDecay = 0
-opt.momentum = 0
-opt.batchSize = 32
-opt.classifier_size = 32
-opt.niters = 20
+Dataset's parameters
+   --width   (default 46)
+   --height  (default 46) Has to match <width>
+   --ncolors (default 3 )
 
---save/load data
-opt.save_dir = './results/'
-opt.temp_dir = './temp-data/'
---Be carefull!!! you need to save data when you change data options like width 
-opt.data_sl = 'load' --save once and then load prepared data from temp file
-opt.mean_sl = 'load' --save once and then load prepared mean from temp file
+Learning parameters
+   --learningRate      (default 5e-3)
+   --learningRateDecay (default 1e-7)
+   --weightDecay       (default 0   )
+   --momentum          (default 0   )
+   --batchSize         (default 32  )
+   --classifier_size   (default 32  )
+   --niters            (default 20  )
 
---output
-opt.plot = false
-opt.verbose = true
-opt.confusion_matrix_tab = 3 --number of tabs between numbers in confusion matrix
-opt.print_confusion_matrix = false
-opt.print_weight_stat = true --print number of neuralnet weights which are lower 1e-5 and higher 1e+2
+Saving parameters
+Be carefull!!! you need to save data when you change data options like width
+   --save_dir (default './results/'  )
+   --temp_dir (default './temp-data/')
+   --data_sl  (default 'load'        ) save once and then load prepared data from temp file ([load]|save)
+   --mean_sl  (default 'load'        ) save once and then load prepared mean from temp file ([load]|save)
 
---other
-opt.verify_statistics = false
-opt.save = true
+On screen output
+   --plot                   (default false)
+   --verbose                (default true )
+   --confusion_matrix_tab   (default 3    ) number of tabs between numbers in confusion matrix
+   --print_confusion_matrix (default false)
+   --print_weight_stat      (default true ) print number of neuralnet weights which are lower 1e-5 and higher 1e+2
 
-opt.cuda = true
-opt.devid = 1 -- device ID (if using CUDA)
-opt.mmload = false --memory mapping when loading data. Use with small RAM
-opt.seed = 123
-opt.num_threads = 3
+CUDA parameters
+   --cuda  (default true)
+   --devid (default 1   ) device ID (if using CUDA)
+
+Other parameters
+   --verify_statistics (default false)
+   --save              (default true )
+   --mmload            (default false) memory mapping when loading data. Use with small RAM
+   --seed              (default 123  )
+   --num_threads       (default 3    )
+]]
 
 -- Title ----------------------------------------------------------------------
 if opt.verbose then print [[
