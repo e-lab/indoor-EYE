@@ -23,6 +23,7 @@ Dataset's parameters
    --width   (default 46)
    --height  (default 46) Has to match <width>
    --ncolors (default 3 )
+   --jitter  (default 4 )
 
 Learning parameters
    --learningRate      (default 5e-3)
@@ -30,15 +31,18 @@ Learning parameters
    --weightDecay       (default 0   )
    --momentum          (default 0   )
    --batchSize         (default 32  )
-   --classifier_size   (default 32  )
    --niters            (default 20  )
 
 Saving parameters
 Be carefull!!! you need to save data when you change data options like width
-   --save_dir (default './results/'  )
-   --temp_dir (default './temp-data/')
-   --data_sl  (default 'load'        ) save once and then load prepared data from temp file ([load]|save)
-   --mean_sl  (default 'load'        ) save once and then load prepared mean from temp file ([load]|save)
+   --save_dir        (default './results/'               )
+   --temp_dir        (default './temp-data/'             )
+   --train_data_file (default 'train-indoor-info-1300.t7')
+   --train_info_file (default 'train-indoor-info-1300.t7')
+   --test_data_file  (default 'test-indoor-data-50.t7'   )
+   --test_info_file  (default 'test-indoor-info-50.t7'   )
+   --data_sl         (default 'load'                     ) save once and then load prepared data from temp file ([load]|save)
+   --mean_sl         (default 'load'                     ) save once and then load prepared mean from temp file ([load]|save)
 
 On screen output
    --plot                   (default false)
@@ -99,10 +103,10 @@ os.execute('mkdir -p ' .. opt.temp_dir) --create folder for temporary data
 -------------------------------------------------------------------------------
 
 data_folder = eex.datasetsPath() .. 'imagenet2012/'
-train_data_file = data_folder .. 'train-indoor-data-1300.t7'
-train_info_file = data_folder .. 'train-indoor-info-1300.t7'
-test_data_file = data_folder .. 'test-indoor-data-50.t7'
-test_info_file = data_folder .. 'test-indoor-info-50.t7'
+train_data_file = data_folder .. opt.train_data_file
+train_info_file = data_folder .. opt.train_info_file
+test_data_file = data_folder .. opt.test_data_file
+test_info_file = data_folder .. opt.test_info_file
 
 dofile('Data/indoor-classes.lua')
 classes = {}

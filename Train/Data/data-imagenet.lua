@@ -36,8 +36,8 @@ function load_raw_imagenet(src_data_file, src_info_file, sfile, fact)
    else
 
       local opt = opt or {}
-      opt.width = opt.width or 46
-      opt.height = opt.height or 46
+      local w = opt.width + opt.jitter 
+      local h = opt.height + opt.jitter
 
       local d = torch.load(src_info_file)
       local jpegs = torch.ByteStorage(src_data_file)
@@ -48,7 +48,7 @@ function load_raw_imagenet(src_data_file, src_info_file, sfile, fact)
       local gm = require 'graphicsmagick'
 
       local n = d.labels:size(1)
-      dt.data = torch.FloatTensor(n, 3, opt.height, opt.width)
+      dt.data = torch.FloatTensor(n, opt.ncolors, h, w)
       dt.labels = torch.Tensor(n)
       dt.imagenet_labels = torch.Tensor(n)
 
@@ -62,7 +62,7 @@ function load_raw_imagenet(src_data_file, src_info_file, sfile, fact)
 
          local sample = gm.Image():fromBlob(jpegblob,size):toTensor('float','RGB','DHW',true)
          sample = extract_square_patch(sample)
-         sample = image.scale(sample, opt.width, opt.height)
+         sample = image.scale(sample, w, h)
 
          for j = 1, opt.ncolors do
             sample[j]:add(-global_mean[j])
@@ -222,16 +222,18 @@ function prepare_async(data_file, info_file)
             local r = l + size - 1
             sample = sample[{ {},{t,b},{l,r} }]
 
-            sample = image.scale(sample, w, h)
+            sample = image.scale(sample, w + jitter, h + jitter)
 
             -- extract sub-patch, with optional jitter:
             local size = math.min(sample:size(2), sample:size(3))
             local t = math.floor((sample:size(2) - h)/2 + 1)
             local l = math.floor((sample:size(3) - w)/2 + 1)
-            --[[ if jitter > 0 and not test then
-            t = t + math.floor(torch.uniform(-jitter/2,jitter/2))
-            l = l + math.floor(torch.uniform(-jitter/2,jitter/2))
-            end--]]
+            
+            if jitter > 0 and not test then
+               t = t + math.floor(torch.uniform(-jitter/2,jitter/2))
+               l = l + math.floor(torch.uniform(-jitter/2,jitter/2))
+            end
+           
             local b = t + h - 1
             local r = l + w - 1
             sample = sample[{ {},{t,b},{l,r} }]
@@ -370,7 +372,17 @@ function prepare_sync(data_file, info_file, save_file, save_act)
       for i = 1, bs do
 
          local j = shuffle[(idx - 1) * bs + i]
-         samples[i] = data.data[j]
+         local x1 = 1
+         local y1 = 1
+
+         if opt.jitter > 0 then
+            --select random shifted subimage 
+            x1 = math.floor(torch.uniform(jitter + 1))
+            y1 = math.floor(torch.uniform(jitter + 1))
+
+         end
+
+         samples[i] = data.data[j][{{},{y1, y1 + opt.height - 1}, {x1, x1 + opt.width - 1}}]
          targets[i] = data.labels[j]
 
       end
