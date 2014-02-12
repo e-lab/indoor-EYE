@@ -26,7 +26,6 @@ opt.learningRateDecay = 1e-7
 opt.weightDecay = 0
 opt.momentum = 0
 opt.batchSize = 32
-opt.classifier_size = 32
 opt.niters = 20
 
 --save/load data
