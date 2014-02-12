@@ -17,6 +17,7 @@ opt = {}
 opt.width = 46
 opt.height = opt.width
 opt.ncolors = 3
+opt.jitter = 4
 
 --learning
 opt.learningRate = 5e-3
@@ -31,8 +32,8 @@ opt.niters = 20
 opt.save_dir = './results/'
 opt.temp_dir = './temp-data/'
 --Be carefull!!! you need to save data when you change data options like width 
-opt.data_sl = 'load' --save once and then load prepared data from temp file
-opt.mean_sl = 'load' --save once and then load prepared mean from temp file
+opt.data_sl = 'save' --save once and then load prepared data from temp file
+opt.mean_sl = 'save' --save once and then load prepared mean from temp file
 
 --output
 opt.plot = false
