@@ -1,3 +1,4 @@
+#!/usr/bin/env torch
 -------------------------------------------------------------------------------
 -- Main script for training neural network
 -- Artem Kuharenko
