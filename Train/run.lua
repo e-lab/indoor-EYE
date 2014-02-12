@@ -28,12 +28,16 @@ opt.momentum = 0
 opt.batchSize = 32
 opt.niters = 20
 
---save/load data
+--data
 opt.save_dir = './results/'
 opt.temp_dir = './temp-data/'
+opt.train_data_file = 'train-indoor-info-1300.t7'
+opt.train_info_file = 'train-indoor-info-1300.t7'
+opt.test_data_file = 'test-indoor-data-50.t7'
+opt.test_info_file = 'test-indoor-info-50.t7'
 --Be carefull!!! you need to save data when you change data options like width 
-opt.data_sl = 'save' --save once and then load prepared data from temp file
-opt.mean_sl = 'save' --save once and then load prepared mean from temp file
+opt.data_sl = 'load' --save once and then load prepared data from temp file
+opt.mean_sl = 'load' --save once and then load prepared mean from temp file
 
 --output
 opt.plot = false
@@ -92,10 +96,10 @@ os.execute('mkdir -p ' .. opt.temp_dir) --create folder for temporary data
 -------------------------------------------------------------------------------
 
 data_folder = eex.datasetsPath() .. 'imagenet2012/'
-train_data_file = data_folder .. 'train-indoor-data-1300.t7'
-train_info_file = data_folder .. 'train-indoor-info-1300.t7'
-test_data_file = data_folder .. 'test-indoor-data-50.t7'
-test_info_file = data_folder .. 'test-indoor-info-50.t7'
+train_data_file = data_folder .. opt.train_data_file
+train_info_file = data_folder .. opt.train_info_file
+test_data_file = data_folder .. opt.test_data_file
+test_info_file = data_folder .. opt.test_info_file
 
 dofile('Data/indoor-classes.lua')
 classes = {}
