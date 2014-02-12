@@ -78,7 +78,7 @@ function load_raw_imagenet(src_data_file, src_info_file, sfile, fact)
       dt.classes = d.classes
 
       if fact == 'save' then
-         print('saving data')
+         print('======> saving data')
          torch.save(opt.temp_dir .. sfile, dt)
       end
 

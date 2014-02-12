@@ -31,14 +31,15 @@ opt.niters = 20
 opt.save_dir = './results/'
 opt.temp_dir = './temp-data/'
 --Be carefull!!! you need to save data when you change data options like width 
-opt.data_sl = 'save' --save once and then load prepared data from temp file
-opt.mean_sl = 'save' --save once and then load prepared mean from temp file
+opt.data_sl = 'load' --save once and then load prepared data from temp file
+opt.mean_sl = 'load' --save once and then load prepared mean from temp file
 
 --output
 opt.plot = false
 opt.verbose = true
 opt.confusion_matrix_tab = 3 --number of tabs between numbers in confusion matrix
 opt.print_confusion_matrix = false
+opt.print_weight_stat = true --print number of neuralnet weights which are lower 1e-5 and higher 1e+2
 
 --other
 opt.verify_statistics = false
