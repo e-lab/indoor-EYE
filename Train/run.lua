@@ -81,8 +81,6 @@ end
 
 -- Aggiusting options ---------------------------------------------------------
 if opt.colour then opt.ncolors = 3 else opt.ncolors = 1 end
-print(opt.ncolors)
-io.read()
 
 -- Training with GPU (if CUDA) ------------------------------------------------
 if opt.cuda then
