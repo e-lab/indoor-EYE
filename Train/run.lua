@@ -27,9 +27,11 @@ local title = [[
 opt = lapp(title .. [[
 
 Dataset's parameters
-   --side    (default 46  ) Training and testing image's side length (max 256)
-   --colour  (default true) True by default, allows to train on B&W if the flag is called
-   --jitter  (default 0   ) Introduce random crop for loweing overfitting
+   --side    (default 46    ) Training and testing image's side length (max 256)
+   --colour  (default true  ) True by default, allows to train on B&W if the flag is called
+   --jitter  (default 0     ) Introduce random crop for loweing overfitting
+   --distort (default false ) TODO
+   --mmload  (default false ) memory mapping when loading data. Use with small RAM
 
 Learning parameters
    --learningRate      (default 5e-3)
@@ -66,7 +68,6 @@ CUDA parameters
 Other parameters
    --verify_statistics
    --save              (default true )
-   --mmload                            memory mapping when loading data. Use with small RAM
    --seed              (default 123  )
    --num_threads       (default 3    )
 ]])

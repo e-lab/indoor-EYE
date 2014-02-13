@@ -88,14 +88,6 @@ function load_raw_imagenet(src_data_file, src_info_file, sfile, fact)
 
 end
 
-opt = opt or {}
-opt.batchSize = opt.batchSize or 128
-opt.receptive = 256
-opt.distort = false
-opt.jitter = 0
-opt.gm = 0
-opt.lm = false
-opt.ls = false
 ----------------------------------------------------------------------
 --scripts for async load with memory mapping
 
@@ -277,9 +269,9 @@ function prepare_async(data_file, info_file)
    opt.distort,
    opt.jitter,
    opt.receptive,
-   opt.gm,
-   opt.lm,
-   opt.ls,
+   0,
+   false,
+   false,
    tonumber(ffi.cast('intptr_t', torch.data(shuffle))),
    tonumber(ffi.cast('intptr_t', torch.data(samples))),
    tonumber(ffi.cast('intptr_t', torch.data(targets))),
