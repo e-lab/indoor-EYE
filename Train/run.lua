@@ -19,10 +19,9 @@ opt = lapp[[
 ********************************************************************************
 
 Dataset's parameters
-   --width   (default 46)
-   --height  (default 46) Has to match <width>
-   --ncolors (default 3 )
-   --jitter  (default 4 )
+   --side    (default 46  ) Training and testing image's side length (max 256)
+   --colour  (default true) True by default, allows to train on B&W if the flag is used
+   --jitter  (default 4   )
 
 Learning parameters
    --learningRate      (default 5e-3)
@@ -69,11 +68,21 @@ if opt.verbose then print [[
 ********************************************************************************
 ]]
 
+-- Aggiusting options ---------------------------------------------------------
+   opt.width  = opt.side
+   opt.height = opt.side
+   opt.side   = nil
+
 -- Print options summary ------------------------------------------------------
    print('==> Options:')
    for a,b in pairs(opt) do print('     + ' .. a .. ':', b) end
    print()
 end
+
+-- Aggiusting options ---------------------------------------------------------
+if opt.colour then opt.ncolors = 3 else opt.ncolors = 1 end
+print(opt.ncolors)
+io.read()
 
 -- Training with GPU (if CUDA) ------------------------------------------------
 if opt.cuda then
@@ -98,7 +107,7 @@ if opt.verbose then print('==> Loading <data> functions') end
 dofile('Data/data-imagenet.lua') --imagenet data scripts
 dofile('Data/data-process.lua') --data scripts
 
-os.execute('mkdir -p ' .. opt.temp_dir) --create folder for temporary data 
+os.execute('mkdir -p ' .. opt.temp_dir) --create folder for temporary data
 -------------------------------------------------------------------------------
 
 data_folder = eex.datasetsPath() .. 'imagenet2012/'
@@ -141,7 +150,7 @@ function run(trainData, testData)
    print_sizes(trainData, 'Train', opt.verbose)
    print_sizes(testData, 'Test', opt.verbose)
 
-   --print train and test mean and std  
+   --print train and test mean and std
    verify_statistics(trainData.data, {'r','g','b'}, 'train images', opt.verify_statistics)
    verify_statistics(testData.data, {'r','g','b'}, 'test images', opt.verify_statistics)
 

@@ -36,7 +36,7 @@ function load_raw_imagenet(src_data_file, src_info_file, sfile, fact)
    else
 
       local opt = opt or {}
-      local w = opt.width + opt.jitter 
+      local w = opt.width + opt.jitter
       local h = opt.height + opt.jitter
 
       local d = torch.load(src_info_file)
@@ -228,12 +228,12 @@ function prepare_async(data_file, info_file)
             local size = math.min(sample:size(2), sample:size(3))
             local t = math.floor((sample:size(2) - h)/2 + 1)
             local l = math.floor((sample:size(3) - w)/2 + 1)
-            
+
             if jitter > 0 and not test then
                t = t + math.floor(torch.uniform(-jitter/2,jitter/2))
                l = l + math.floor(torch.uniform(-jitter/2,jitter/2))
             end
-           
+
             local b = t + h - 1
             local r = l + w - 1
             sample = sample[{ {},{t,b},{l,r} }]
@@ -376,7 +376,7 @@ function prepare_sync(data_file, info_file, save_file, save_act)
          local y1 = 1
 
          if opt.jitter > 0 then
-            --select random shifted subimage 
+            --select random shifted subimage
             x1 = math.floor(torch.uniform(jitter + 1))
             y1 = math.floor(torch.uniform(jitter + 1))
 
