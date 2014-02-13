@@ -20,8 +20,8 @@ opt = lapp[[
 
 Dataset's parameters
    --side    (default 46  ) Training and testing image's side length (max 256)
-   --colour  (default true) True by default, allows to train on B&W if the flag is false
-   --jitter  (default 0   )
+   --colour  (default true) True by default, allows to train on B&W if the flag is called
+   --jitter  (default 0   ) Introduce random crop for loweing overfitting
 
 Learning parameters
    --learningRate      (default 5e-3)
@@ -33,21 +33,23 @@ Learning parameters
 
 Saving parameters
 Be carefull!!! you need to save data when you change data options like width
+To doing so, just call the flag <cleanRun>
+   --cleanRun                                              run without loading any previously stored data
    --save_dir        (default './results/'               )
    --temp_dir        (default './temp-data/'             )
    --train_data_file (default 'train-indoor-data-1300.t7')
    --train_info_file (default 'train-indoor-info-1300.t7')
    --test_data_file  (default 'test-indoor-data-50.t7'   )
    --test_info_file  (default 'test-indoor-info-50.t7'   )
-   --data_sl         (default 'save'                     ) save once and then load prepared data from temp file ([load]|save)
-   --mean_sl         (default 'save'                     ) save once and then load prepared mean from temp file ([load]|save)
+   --data_sl         (default 'load'                     ) save once and then load prepared data from temp file ([load]|save)
+   --mean_sl         (default 'load'                     ) save once and then load prepared mean from temp file ([load]|save)
 
 On screen output
-   --plot
-   --verbose                (default true )
-   --confusion_matrix_tab   (default 3    ) number of tabs between numbers in confusion matrix
-   --print_confusion_matrix
-   --print_weight_stat      (default true ) print number of neuralnet weights which are lower 1e-5 and higher 1e+2
+   --plot                                  plot training and testing accuracies
+   --verbose                (default true) show more output on screen
+   --confusion_matrix_tab   (default 3   ) number of tabs between numbers in confusion matrix
+   --print_confusion_matrix                print confusion matrix after training and testing
+   --print_weight_stat      (default true) print number of neuralnet weights which are lower 1e-5 and higher 1e+2
 
 CUDA parameters
    --cuda  (default true)
@@ -77,6 +79,10 @@ if opt.verbose then print [[
    opt.width  = opt.side
    opt.height = opt.side
    opt.side   = nil
+   if opt.cleanRun then
+      data_sl = 'save'
+      mean_sl = 'save'
+   end
 
 -- Print options summary ------------------------------------------------------
    print('==> Options:')
