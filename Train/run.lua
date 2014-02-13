@@ -13,7 +13,6 @@ require 'pl'
 require 'usefulFunctions'
 
 -- Options --------------------------------------------------------------------
---lapp doesn't work with qlua... I guess this has to be fixed -> TODO
 opt = lapp[[
 ********************************************************************************
 >>>>>>>>>>>>>>>>>>>>> indoor-NET: training on imageNet <<<<<<<<<<<<<<<<<<<<<<<<<
@@ -45,10 +44,10 @@ Be carefull!!! you need to save data when you change data options like width
    --mean_sl         (default 'load'                     ) save once and then load prepared mean from temp file ([load]|save)
 
 On screen output
-   --plot                   (default false)
+   --plot
    --verbose                (default true )
    --confusion_matrix_tab   (default 3    ) number of tabs between numbers in confusion matrix
-   --print_confusion_matrix (default false)
+   --print_confusion_matrix
    --print_weight_stat      (default true ) print number of neuralnet weights which are lower 1e-5 and higher 1e+2
 
 CUDA parameters
@@ -56,9 +55,9 @@ CUDA parameters
    --devid (default 1   ) device ID (if using CUDA)
 
 Other parameters
-   --verify_statistics (default false)
+   --verify_statistics
    --save              (default true )
-   --mmload            (default false) memory mapping when loading data. Use with small RAM
+   --mmload                            memory mapping when loading data. Use with small RAM
    --seed              (default 123  )
    --num_threads       (default 3    )
 ]]
