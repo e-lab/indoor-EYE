@@ -85,8 +85,8 @@ if opt.verbose then print(title)
    opt.height = opt.side
    opt.side   = nil
    if opt.cleanRun then
-      data_sl = 'save'
-      mean_sl = 'save'
+      opt.data_sl = 'save'
+      opt.mean_sl = 'save'
    end
 
 -- Print options summary ------------------------------------------------------

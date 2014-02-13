@@ -369,8 +369,8 @@ function prepare_sync(data_file, info_file, save_file, save_act)
 
          if opt.jitter > 0 then
             --select random shifted subimage
-            x1 = math.floor(torch.uniform(jitter + 1))
-            y1 = math.floor(torch.uniform(jitter + 1))
+            x1 = math.floor(torch.uniform(opt.jitter + 1))
+            y1 = math.floor(torch.uniform(opt.jitter + 1))
 
          end
 
