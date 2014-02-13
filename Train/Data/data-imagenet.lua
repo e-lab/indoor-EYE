@@ -339,7 +339,7 @@ function prepare_sync(data_file, info_file, save_file, save_act)
    local data = load_raw_imagenet(data_file, info_file, save_file, save_act)
 
    local nsamples = data.data:size(1)
-   local samples = torch.FloatTensor(opt.batchSize, data.data:size(2), data.data:size(3), data.data:size(4))
+   local samples = torch.FloatTensor(opt.batchSize, opt.ncolors, opt.height, opt.width)
    local targets = torch.FloatTensor(opt.batchSize)
    local shuffle = torch.randperm(nsamples):type('torch.LongTensor')
 
