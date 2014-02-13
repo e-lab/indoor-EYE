@@ -12,11 +12,19 @@ require 'torchffi'
 require 'pl'
 require 'usefulFunctions'
 
+-- Title definition -----------------------------------------------------------
+local title = [[
+          _           _                         _   _ ______ _______
+         (_)         | |                       | \ | |  ____|__   __|
+          _ _ __   __| | ___   ___  _ __ ______|  \| | |__     | |
+         | | '_ \ / _` |/ _ \ / _ \| '__|______| . ` |  __|    | |
+         | | | | | (_| | (_) | (_) | |         | |\  | |____   | |
+         |_|_| |_|\__,_|\___/ \___/|_|         |_| \_|______|  |_|
+
+ ]]
+
 -- Options --------------------------------------------------------------------
-opt = lapp[[
-********************************************************************************
->>>>>>>>>>>>>>>>>>>>> indoor-NET: training on imageNet <<<<<<<<<<<<<<<<<<<<<<<<<
-********************************************************************************
+opt = lapp(title .. [[
 
 Dataset's parameters
    --side    (default 46  ) Training and testing image's side length (max 256)
@@ -61,7 +69,7 @@ Other parameters
    --mmload                            memory mapping when loading data. Use with small RAM
    --seed              (default 123  )
    --num_threads       (default 3    )
-]]
+]])
 
 --allow write default false
 for a,b in pairs(opt) do
@@ -69,11 +77,7 @@ for a,b in pairs(opt) do
 end
 
 -- Title ----------------------------------------------------------------------
-if opt.verbose then print [[
-********************************************************************************
->>>>>>>>>>>>>>>>>>>>> indoor-NET: training on imageNet <<<<<<<<<<<<<<<<<<<<<<<<<
-********************************************************************************
-]]
+if opt.verbose then print(title)
 
 -- Aggiusting options ---------------------------------------------------------
    opt.width  = opt.side
