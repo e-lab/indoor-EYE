@@ -20,8 +20,8 @@ opt = lapp[[
 
 Dataset's parameters
    --side    (default 46  ) Training and testing image's side length (max 256)
-   --colour  (default true) True by default, allows to train on B&W if the flag is used
-   --jitter  (default 4   )
+   --colour  (default true) True by default, allows to train on B&W if the flag is false
+   --jitter  (default 0   )
 
 Learning parameters
    --learningRate      (default 5e-3)
@@ -35,12 +35,12 @@ Saving parameters
 Be carefull!!! you need to save data when you change data options like width
    --save_dir        (default './results/'               )
    --temp_dir        (default './temp-data/'             )
-   --train_data_file (default 'train-indoor-info-1300.t7')
+   --train_data_file (default 'train-indoor-data-1300.t7')
    --train_info_file (default 'train-indoor-info-1300.t7')
    --test_data_file  (default 'test-indoor-data-50.t7'   )
    --test_info_file  (default 'test-indoor-info-50.t7'   )
-   --data_sl         (default 'load'                     ) save once and then load prepared data from temp file ([load]|save)
-   --mean_sl         (default 'load'                     ) save once and then load prepared mean from temp file ([load]|save)
+   --data_sl         (default 'save'                     ) save once and then load prepared data from temp file ([load]|save)
+   --mean_sl         (default 'save'                     ) save once and then load prepared mean from temp file ([load]|save)
 
 On screen output
    --plot
@@ -60,6 +60,11 @@ Other parameters
    --seed              (default 123  )
    --num_threads       (default 3    )
 ]]
+
+--allow write default false
+for a,b in pairs(opt) do
+   if (b == 'false') then opt[a] = false end
+end
 
 -- Title ----------------------------------------------------------------------
 if opt.verbose then print [[
