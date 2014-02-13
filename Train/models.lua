@@ -8,7 +8,7 @@ function get_model1()
    local nlayers = 2 --number of (conv+pool+threshold) layers
    local nfeatures= {[0]=3, 32, 32} --number of feature maps in conv layers
    local filtsizes = {7, 5} --filter sizes in conv layers
-   local paddings = {0, 0} 
+   local paddings = {0, 0}
    local strides = {1, 1}
    local poolsizes = {2, 2}
 
@@ -16,7 +16,7 @@ function get_model1()
    local linears = {32, #classes} --number of neurons in linear layer
 
    printable_layers = {2} --layers for printing weights stat
-   
+
    --define neural net
    local model = nn.Sequential()
 
@@ -24,7 +24,7 @@ function get_model1()
    if opt.cuda then
       model:add(nn.Transpose({1,4},{1,3},{1,2}))
    end
-   
+
    local mapsizes = {[0]=opt.width} --sizes of output of layers
    local nconnections = {[0]=0} --number of connections between i-th and (i-1) layer
    local nhiddens = {[0] = 0} --number of hidden units in layer i
@@ -67,7 +67,7 @@ function get_model1()
       nhiddens[i] = conv_layer.weight:size(2) * conv_layer.weight:size(3) * conv_layer.weight:size(4)
       nconnections[i] = conv_layer.weight:size(1) * nhiddens[i] * (mapsizes[i - 1] - filtsizes[i] + 1) ^ 2
 
-      if opt.cuda then 
+      if opt.cuda then
          nouts[i] = pool_layer.output:size(2) * pool_layer.output:size(3) * nfeatures[i]
       else
          nouts[i] = pool_layer.output:size(3) * pool_layer.output:size(4) * nfeatures[i]
@@ -116,7 +116,7 @@ function get_model1()
    for i = 0, nlayers + #linears do
 
       print(string.format(
-      '==> model layer %02d  -  spatial extent: %03dx%03d  |  feature maps: %04d  |  hidden units: %05d  |  output size: %05d  |  connections: %05d',
+      '==> model layer %2d  -  spatial extent: %3dx%3d  |  feature maps: %3d  |  hidden units: %4d  |  output size: %6d  |  connections: %8d',
       i, mapsizes[i], mapsizes[i], nfeatures[i], nhiddens[i], nouts[i], nconnections[i]
       ))
 
