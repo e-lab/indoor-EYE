@@ -4,6 +4,8 @@
 -------------------------------------------------------------------------------
 require 'pl'
 require 'torchffi'
+require 'eex'
+
 opt = lapp([[
 
    --show_test           (default false ) 
@@ -43,7 +45,7 @@ end
 print(opt)
 
 dofile('data-imagenet.lua')
-data_folder = '/home/artem/datasets/imagenet2012/'
+data_folder = eex.datasetsPath() .. 'imagenet2012/' --'/home/artem/datasets/imagenet2012/'
 -----------------------------------------------------------------------------------------------
 if opt.async_load_example then
    --async load batch example
