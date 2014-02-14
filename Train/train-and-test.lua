@@ -249,9 +249,9 @@ function train_and_test(trainData, testData, model, loss, plot, verbose)
          ce_logger:plot()
       end
 
-      --save classifier every 5 iterations
+      --save model every 5 iterations
       if (i % 5 == 0) then
-         saveNet(model, opt.save_dir .. 'classifier-' .. i .. '.net', verbose)
+         saveNet(model, opt.save_dir .. 'model-' .. i .. '.net', verbose)
       end
 
       train_confusion:zero()
