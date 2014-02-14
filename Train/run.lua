@@ -51,6 +51,7 @@ To doing so, just call the flag <cleanRun>
    --train_info_file (default 'train-indoor-info-1300.t7')
    --test_data_file  (default 'test-indoor-data-50.t7'   )
    --test_info_file  (default 'test-indoor-info-50.t7'   )
+   --subsample_classes (default 'elab') 
    --data_sl         (default 'load'                     ) save once and then load prepared data from temp file ([load]|save)
    --mean_sl         (default 'load'                     ) save once and then load prepared mean from temp file ([load]|save)
 
