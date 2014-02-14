@@ -130,10 +130,8 @@ train_info_file = data_folder .. opt.train_info_file
 test_data_file = data_folder .. opt.test_data_file
 test_info_file = data_folder .. opt.test_info_file
 
+--load classes
 dofile('Data/indoor-classes.lua')
-classes = {}
-for i = 1, #indoor_classes do classes[i] = indoor_classes[i][1] end
-
 -------------------------------------------------------------------------------
 
 torch.manualSeed(opt.seed)
