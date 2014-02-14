@@ -4,22 +4,21 @@
 -------------------------------------------------------------------------------
 
 --{class name, imagenet class ids}
-local elab_classes = {{'computer-mouse', {511}},
+if opt.subsample_classes == 'elab' then
+
+   classes = {{'computer-mouse', {511}},
                     {'printer', {556}},
                     {'cellphone', {914}},
-                    {'ipod', {980}},
                     {'cup', {859}},
                     {'laptop', {228}},
                     {'keyboard', {543}},
-                    {'website', {553}},
-                    {'desktop-computer', {550}},
-                    {'monitor', {869}},
                     {'desk', {313}},
                     {'bottle-of-water', {958}},
                     {'trash-can', {752}}
                    }
+elseif opt.subsample_classes == 'indoor51' then
 
-local classes51 = {{'domestic-animal', {2, 3, 4, 5, 8, 10, 15, 17, 18, 19, 20, 21, 25, 26, 27, 29, 31, 32, 33,
+   classes = {{'domestic-animal', {2, 3, 4, 5, 8, 10, 15, 17, 18, 19, 20, 21, 25, 26, 27, 29, 31, 32, 33,
                                        36, 40, 41, 42, 43, 45, 46, 47, 49, 50, 51, 56, 59, 60, 63, 64, 66, 68,
                                        69, 70, 71, 72, 77, 79, 82, 84, 86, 87, 88, 89, 90, 91, 93, 94, 95, 97,
                                        98, 99, 101, 105, 106, 107, 109, 110, 112, 113, 114, 115, 116, 117, 118,
@@ -81,5 +80,4 @@ local classes51 = {{'domestic-animal', {2, 3, 4, 5, 8, 10, 15, 17, 18, 19, 20, 2
                   {'hand-blower', {505}},
                   {'iron', {659}},
                   {'vacuum', {666}}}
-
-classes = elab_classes
+end
