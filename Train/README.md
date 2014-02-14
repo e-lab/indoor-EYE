@@ -1,7 +1,12 @@
 # Train a neural net
 
 To start training with default options do `./run.lua` <br>
-To prepare data for training use `Data/test-imagenet.lua` script
+
+##Prepare data
+You need to prepare data first. 
+- To subsample imagenet data do: `th ../Train/Data/prepare_imagenet.lua --subsample_test true --subsample_train true --subsample_classes elab`
+- To look at data, run `qlua ../Train/Data/prepare_imagenet.lua --show_test`
+- See [`Data`](Data) for details.
 
 ##run options
 You can specify options in `run.lua` file
