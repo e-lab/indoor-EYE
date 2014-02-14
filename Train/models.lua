@@ -5,24 +5,24 @@
 function get_model1()
 
    --options for (conv+pool+threshold) layers
-   local nlayers = 2 --number of (conv+pool+threshold) layers
+   local nlayers = 1 --number of (conv+pool+threshold) layers
    local nfeatures= {[0]=3, 32, 32} --number of feature maps in conv layers
-   local filtsizes = {7, 5} --filter sizes in conv layers
+   local filtsizes = {9, 5} --filter sizes in conv layers
    local paddings = {0, 0} 
    local strides = {1, 1}
    local poolsizes = {2, 2}
 
    --options for linear layers
-   local linears = {32, #classes} --number of neurons in linear layer
+   local linears = {32} --number of neurons in linear layer
 
-   printable_layers = {2} --layers for printing weights stat
-   
-   --define neural net
+   --neuralnet model consists of submodel1 and submodel2
    local model = nn.Sequential()
+   local submodel1 = nn.Sequential() --conv+pool+threshold layers
+   local submodel2 = nn.Sequential() --linear layers
 
    --transpose batch if cuda
    if opt.cuda then
-      model:add(nn.Transpose({1,4},{1,3},{1,2}))
+      submodel1:add(nn.Transpose({1,4},{1,3},{1,2}))
    end
    
    local mapsizes = {[0]=opt.width} --sizes of output of layers
@@ -54,9 +54,9 @@ function get_model1()
 
       conv_layer.printable = true
       conv_layer.text = 'Conv layer ' .. i
-      model:add(conv_layer)
-      model:add(pool_layer)
-      model:add(nn.Threshold(0,0))
+      submodel1:add(conv_layer)
+      submodel1:add(pool_layer)
+      submodel1:add(nn.Threshold(0,0))
 
       --get layer sizes
       local r1 = conv_layer:forward(test_batch)
@@ -77,11 +77,11 @@ function get_model1()
 
    --transpose batch if cuda
    if opt.cuda then
-      model:add(nn.Transpose({4,1},{4,2},{4,3}))
+      submodel1:add(nn.Transpose({4,1},{4,2},{4,3}))
    end
 
    --reshape
-   model:add(nn.Reshape(nouts[nlayers]))
+   submodel2:add(nn.Reshape(nouts[nlayers]))
 
    --add linear layers
    for i = 1, #linears do
@@ -90,8 +90,8 @@ function get_model1()
       local linear_layer = nn.Linear(nouts[nlayers + i - 1], nouts[nlayers + i])
       linear_layer.printable = true
       linear_layer.text = 'Linear layer' .. i
-      model:add(linear_layer)
-      model:add(nn.Threshold(0, 0))
+      submodel2:add(linear_layer)
+      submodel2:add(nn.Threshold(0, 0))
 
       --get layer sizes
       mapsizes[nlayers + i] = 1
@@ -101,8 +101,14 @@ function get_model1()
 
    end
 
+   --add classifier
+   submodel2:add(nn.Linear(nouts[nlayers + #linears], #classes))
    --log probabilities
-   model:add(nn.LogSoftMax())
+   submodel2:add(nn.LogSoftMax())
+
+   --add submodels to model
+   model:add(submodel1)
+   model:add(submodel2)
 
    -- Loss: NLL
    local loss = nn.ClassNLLCriterion()
@@ -122,7 +128,7 @@ function get_model1()
 
    end
 
-  -- print(model.modules)
+   print(model.modules)
    return model, loss
 
 end
