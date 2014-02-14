@@ -93,7 +93,7 @@ function print_confusion_matrix(self, init_str)
       table.insert(str, '[')
       for t = 1,nclasses do
          local pclass = self.valids[t] * 100
-         pclass = string.format('%2.3f', pclass)
+         pclass = string.format('%6.3f', pclass)
          if t == 1 then
             table.insert(str, '[')
          else
@@ -104,9 +104,9 @@ function print_confusion_matrix(self, init_str)
          end
          if self.classes and self.classes[1] then
             if t == nclasses then
-               table.insert(str, ']]  ' .. pclass .. '% \t[class: ' .. (self.classes[t] or '') .. ']\n')
+               table.insert(str, ']]  ' .. pclass .. '%  [class: ' .. (self.classes[t] or '') .. ']\n')
             else
-               table.insert(str, ']   ' .. pclass .. '% \t[class: ' .. (self.classes[t] or '') .. ']\n')
+               table.insert(str, ']   ' .. pclass .. '%  [class: ' .. (self.classes[t] or '') .. ']\n')
             end
          else
             if t == nclasses then
@@ -165,7 +165,7 @@ function train_and_test(trainData, testData, model, loss, plot, verbose)
       ims = ims:cuda()
       targets = targets:cuda()
    end
-   
+
    for i = 1, opt.niters do
 
       -------------------------------------------------------------------------------
@@ -198,16 +198,16 @@ function train_and_test(trainData, testData, model, loss, plot, verbose)
                   local ws_big = ws:gt(1e+2):sum()
 
                   local gws = m.gradWeight:clone() --gradweights
-                  gws = gws:float():abs()            
+                  gws = gws:float():abs()
                   local gws_small = gws:lt(1e-5):sum()
                   local gws_big = gws:gt(1e+2):sum()
-    
+
                   print(m.text .. string.format(': number of small weights: %d, big weights: %d', ws_small, ws_big))
-                  print(m.text .. string.format(': number of small gradweights: %d, big gradweights: %d', gws_small, gws_big))               
+                  print(m.text .. string.format(': number of small gradweights: %d, big gradweights: %d', gws_small, gws_big))
 
                end
             end
-             
+
 
          end
 

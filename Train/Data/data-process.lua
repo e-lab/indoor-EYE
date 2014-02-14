@@ -8,7 +8,7 @@ function print_sizes(data, text, verbose)
 
    data.prepareBatch(1)
    local ims = data.copyBatch()
- 
+
    if verbose then
       print('==> ' .. text .. ' number of batches: ' .. data.nbatches() .. ', Batch size: ' .. ims:size(1) .. 'x' .. ims:size(2) .. 'x' .. ims:size(3) .. 'x' .. ims:size(4))
    end
@@ -17,7 +17,7 @@ end
 
 function verify_statistics(images, channels, text, v)
 
-   if v then 
+   if v then
 
       print('==> verify ' .. text .. ' statistics:')
 
@@ -40,7 +40,7 @@ function get_global_mean(data, verbose)
    local nc = data.data:size(2)
    local mean = torch.Tensor(nc):zero()
    local std = torch.Tensor(nc):zero()
-   
+
    for i = 1, nc do
 
       mean[i] = data.data[{ {},i,{},{} }]:mean()
@@ -64,7 +64,7 @@ function get_global_mean_async(data_file, info_file, sdir, save_act, verbose)
    local sfile = sdir .. 'preproc.t7'
 
    if save_act == 'load' and paths.filep(sfile) then
-      
+
       if verbose then
          print('==> Loading mean and std from file ' .. sfile)
       end
@@ -85,12 +85,12 @@ function get_global_mean_async(data_file, info_file, sdir, save_act, verbose)
       local offsets_p = ffi.cast('unsigned long *', ffi.cast('intptr_t', torch.data(dt.offsets)))
       local sizes_p   = ffi.cast('unsigned long *', ffi.cast('intptr_t', torch.data(dt.sizes)))
       local gm = require 'graphicsmagick'
-      
+
       local n = dt.labels:size(1)
 
       for i = 1, n do
 
-         if verbose then
+         if verbose and i*100/n%10 == 0 then
             xlua.progress(i, n)
          end
 
@@ -106,14 +106,14 @@ function get_global_mean_async(data_file, info_file, sdir, save_act, verbose)
             mean[j] = mean[j] + sample[j]:mean() / n
             local s2 = sample[j]:dot(sample[j])
             std[j] = std[j] + s2 / n / sample:size(2) / sample:size(3)
-             
+
          end
 
       end
 
       for j = 1, opt.ncolors do
          std[j] = std[j] - mean[j] * mean[j]
-      end      
+      end
       std:sqrt()
 
       if save_act == 'save' then
@@ -128,7 +128,7 @@ function get_global_mean_async(data_file, info_file, sdir, save_act, verbose)
    if verbose then
       print('======> Using train data mean: ' .. mean[1] .. ' ' .. mean[2] .. ' ' .. mean[3])
       print('======> Using train data std: ' .. std[1] .. ' ' .. std[2] .. ' ' .. std[3])
-   end   
+   end
 
    return mean, std
 
