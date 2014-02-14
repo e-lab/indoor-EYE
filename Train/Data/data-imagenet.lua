@@ -740,6 +740,9 @@ function saveNet(model, filename, verbose)
       print('==> saving model to '..filename)
    end
    modelToSave = model:clone()
+   modelToSave:float()
+
    netLighter(modelToSave)
+--   print(modelToSave.modules)
    torch.save(filename, modelToSave)
 end
