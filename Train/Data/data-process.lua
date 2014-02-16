@@ -90,7 +90,7 @@ function get_global_mean_async(data_file, info_file, sdir, save_act, verbose)
 
       for i = 1, n do
 
-         if verbose and i*100/n%10 == 0 then
+         if verbose then
             xlua.progress(i, n)
          end
 

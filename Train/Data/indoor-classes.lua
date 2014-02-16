@@ -4,19 +4,20 @@
 -------------------------------------------------------------------------------
 
 --{class name, imagenet class ids}
-if opt.subsample_classes == 'elab' then
+if opt.subsample_name == 'elab' then
 
    classes = {{'computer-mouse', {511}},
-                    {'printer', {556}},
-                    {'cellphone', {914}},
-                    {'cup', {859}},
-                    {'laptop', {228}},
-                    {'keyboard', {543}},
-                    {'desk', {313}},
-                    {'bottle-of-water', {958}},
-                    {'trash-can', {752}}
-                   }
-elseif opt.subsample_classes == 'indoor51' then
+              {'printer', {556}},
+              {'cellphone', {914}},
+              {'cup', {859}},
+              {'laptop', {228}},
+              {'keyboard', {543}},
+              {'desk', {313}},
+              {'bottle-of-water', {958}},
+              {'trash-can', {752}}
+             }
+
+elseif opt.subsample_name == 'indoor51' then
 
    classes = {{'domestic-animal', {2, 3, 4, 5, 8, 10, 15, 17, 18, 19, 20, 21, 25, 26, 27, 29, 31, 32, 33,
                                        36, 40, 41, 42, 43, 45, 46, 47, 49, 50, 51, 56, 59, 60, 63, 64, 66, 68,

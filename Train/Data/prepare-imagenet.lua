@@ -1,6 +1,9 @@
 -------------------------------------------------------------------------------
--- Examples of using data functions
--- Artem Kuharenko
+-- Create subsamples of imagenet
+-- Visualize train and test data
+-- Save subsample classes in different folders. This helps to check data.
+-- 
+-- Artem Kuharenko, February 2014
 -------------------------------------------------------------------------------
 require 'pl'
 require 'torchffi'
@@ -8,31 +11,24 @@ require 'eex'
 
 opt = lapp([[
 
-   --show_test           (default false ) 
-   --show_train          (default false ) 
-   --load_test           (default false ) 
-   --load_train          (default false ) 
-   --async_load_example  (default false ) 
-   --subsample_test      (default false ) 
-   --subsample_train     (default false )
-   --subsample_classes   (default 'elab') 
-   --save_test           (default false ) 
-   --save_train          (default false ) 
+   --show_test           (default false ) set true if you want to look at test images
+   --show_train          (default false ) set true if you want to look at train images
+   --subsample_test      (default false ) set true to create subsample of test imagenet images
+   --subsample_train     (default false ) set true to create subsample of train imagenet images
+   --save_test           (default false ) save test images. Helps to check data
+   --save_train          (default false ) save train images. Helps to check data
+   --subsample_name      (default elab  ) name of imagenet subsample.
 
-   --src_test_data       (default test256m-data.t7 ) 
-   --src_test_info       (default test256m-info.t7 ) 
+   --src_test_data       (default test256m-data.t7  ) --file with compressed jpegs
+   --src_test_info       (default test256m-info.t7  ) --file with labels, image sizes and paddings
    --src_train_data      (default train256m-data.t7 ) 
    --src_train_info      (default train256m-info.t7 ) 
-   --test_data_file      (default test-data-elab.t7 ) 
-   --test_info_file      (default test-info-elab.t7 ) 
-   --train_data_file     (default train-data-elab.t7 ) 
-   --train_info_file     (default train-info-elab.t7 ) 
 
-   --width               (default 46    ) 
-   --height              (default 46    ) 
-   --ncolors             (default 3     ) 
-   --batchSize           (default 32    ) 
-   --jitter               (default 0    ) 
+   --width               (default 46 ) --width of data
+   --height              (default 46 ) --height of data
+   --ncolors             (default 3  ) 
+   --batchSize           (default 32 ) 
+   --jitter              (default 0  ) 
 
 ]])
 
@@ -45,30 +41,24 @@ end
 print(opt)
 
 dofile('data-imagenet.lua')
-data_folder = eex.datasetsPath() .. 'imagenet2012/' --'/home/artem/datasets/imagenet2012/'
 -----------------------------------------------------------------------------------------------
-if opt.async_load_example then
-   --async load batch example
+--set data paths
+data_folder = eex.datasetsPath() .. 'imagenet2012/' 
 
-   testData = load_imagenet_async(data_folder .. 'test256m-data.t7', data_folder .. 'test256m-info.t7')
-   testData.prepareBatch(1) --this is done async in another thread
-   b = testData.copyBatch() --now you get first batch
-
-end
-------------------------------------------------------------------------------------------------
-
+--source data files
 src_train_data = data_folder .. opt.src_train_data
 src_train_info = data_folder .. opt.src_train_info
 src_test_data = data_folder .. opt.src_test_data
 src_test_info = data_folder .. opt.src_test_info
 
-train_data_file = data_folder .. opt.train_data_file
-train_info_file = data_folder .. opt.train_info_file
-test_data_file = data_folder .. opt.test_data_file
-test_info_file = data_folder .. opt.test_info_file
+--destination subsample filenames 
+train_data_file = data_folder .. 'train-data-' .. opt.subsample_name .. '.t7'
+train_info_file = data_folder .. 'train-info-' .. opt.subsample_name .. '.t7'
+test_data_file = data_folder .. 'test-data-' .. opt.subsample_name .. '.t7'
+test_info_file = data_folder .. 'test-info-' .. opt.subsample_name .. '.t7'
 
 if opt.convert_class_names then
-   --convert class names from csv to torch table. Do this once and the comment
+   --convert class names from csv to torch table. Do this once.
    print(data_folder .. 'classes.csv', data_folder .. 'classes.th')
    csv2table(data_folder .. 'classes.csv', data_folder .. 'classes.th')
 end
@@ -93,15 +83,16 @@ if opt.subsample_train then
    filter_imagenet(src_train_data, src_train_info, train_data_file, train_info_file, classes, imagenet_class_names, max_class_size)
 end
 
+--global_mean and global_std are used in data loading functions 
 global_mean = {0, 0, 0}
 global_std = {1, 1, 1}
 
-if opt.load_test or opt.show_test then
+if opt.save_test or opt.show_test then
    --load raw resized test photos
    testData = prepare_sync(test_data_file, test_info_file)
 end
 
-if opt.load_train or opt.show_train then
+if opt.save_train or opt.show_train then
    --load raw resized train photos
    trainData = prepare_sync(train_data_file, train_info_file)
 end

@@ -44,21 +44,17 @@ Learning parameters
 Saving parameters
 Be carefull!!! you need to save data when you change data options like width
 To doing so, just call the flag <cleanRun>
-   --cleanRun                                              run without loading any previously stored data
-   --save_dir        (default './results/'               )
-   --temp_dir        (default './temp-data/'             )
-   --train_data_file (default 'train-indoor-data-1300.t7')
-   --train_info_file (default 'train-indoor-info-1300.t7')
-   --test_data_file  (default 'test-indoor-data-50.t7'   )
-   --test_info_file  (default 'test-indoor-info-50.t7'   )
-   --subsample_classes (default 'elab') 
-   --data_sl         (default 'load'                     ) save once and then load prepared data from temp file ([load]|save)
-   --mean_sl         (default 'load'                     ) save once and then load prepared mean from temp file ([load]|save)
+   --cleanRun                                  run without loading any previously stored data
+   --save_dir        (default './results/'   )
+   --temp_dir        (default './temp-data/' )
+   --subsample_name  (default 'elab'         ) name of imagenet subsample. You can create several imagenet subsamples with data-prepare script. 
+   --data_sl         (default 'load'         ) save once and then load prepared data from temp file ([load]|save)
+   --mean_sl         (default 'load'         ) save once and then load prepared mean from temp file ([load]|save)
 
 On screen output
    --plot                                  plot training and testing accuracies
    --verbose                (default true) show more output on screen
-   --confusion_matrix_tab   (default 3   ) number of tabs between numbers in confusion matrix
+   --confusion_matrix_tab   (default 3   ) number of tabs between numbers in print of confusion matrix
    --print_confusion_matrix                print confusion matrix after training and testing
    --print_weight_stat      (default true) print number of neuralnet weights which are lower 1e-5 and higher 1e+2
 
@@ -125,11 +121,12 @@ dofile('Data/data-process.lua') --data scripts
 os.execute('mkdir -p ' .. opt.temp_dir) --create folder for temporary data
 -------------------------------------------------------------------------------
 
+--set data paths
 data_folder = eex.datasetsPath() .. 'imagenet2012/'
-train_data_file = data_folder .. opt.train_data_file
-train_info_file = data_folder .. opt.train_info_file
-test_data_file = data_folder .. opt.test_data_file
-test_info_file = data_folder .. opt.test_info_file
+train_data_file = data_folder .. 'train-data-' .. opt.subsample_name .. '.t7' --file with compressed jpegs
+train_info_file = data_folder .. 'train-info-' .. opt.subsample_name .. '.t7' --file with labels, image sizes and paddings
+test_data_file = data_folder .. 'test-data-' .. opt.subsample_name .. '.t7'
+test_info_file = data_folder .. 'test-info-' .. opt.subsample_name .. '.t7'
 
 --load classes
 dofile('Data/indoor-classes.lua')
@@ -145,9 +142,11 @@ global_mean, global_std = get_global_mean_async(train_data_file, train_info_file
 
 --prepare data
 if opt.mmload then
+   --use memory mapping
    testData = prepare_async(test_data_file, test_info_file)
    trainData = prepare_async(train_data_file, train_info_file)
 else
+   --load all data at once
    testData = prepare_sync(test_data_file, test_info_file, 'test.t7', opt.data_sl)
    trainData = prepare_sync(train_data_file, train_info_file, 'train.t7', opt.data_sl)
 end
@@ -180,6 +179,7 @@ function run(trainData, testData)
 end
 
 train_acc, test_acc = run(trainData, testData)
+
 print(string.format('==> Train accuracy = %.3f', train_acc) .. '%')
 print(string.format('==> Test accuracy = %.3f', test_acc) .. '%')
 
