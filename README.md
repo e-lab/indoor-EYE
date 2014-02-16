@@ -27,8 +27,10 @@ The repository tree, at the moment, is the following
  - `Train/temp-data`: stores all temporary data
  
 ### Run from scratch
-- Prepare data: `cd Train/Data`, `th prepare_imagenet.lua --subsample_test true --subsample_train true --subsample_classes elab`
-- Look at data: `qlua prepare_imagenet.lua --show_test`
-- Train model: `cd Train`,  `th run.lua --train_data_file train-data-elab.t7 --train_info_file train-info-elab.t7 --test_data_file test-data-elab.t7 --test_info_file test-info-elab.t7 --subsample_classes elab`
-- Run demo: `qlua run.lua -v ../videos/eLab.mp4 -downsampling 1 -x 0`
+- Data. Required files in `(eex.datasetsPath() .. 'imagenet2012/')` folder: `train256m-data.t7`, `train256m-info.t7`, `test256m-data.t7`, `test256m-info.t7`, `classes.csv`.  
+- Subsample data. <br> `cd Train/Data` <br> `th prepare-imagenet.lua --subsample_test true --subsample_train true --convert_class_names true` <br> This will create files `train-data-elab.t7`, `train-info-elab.t7`, `test-data-elab.t7`, `test-info-elab.t7`, `classes.th`.
+- Look at data. <br> `qlua prepare-imagenet.lua --show_test true`
+- Train model. <br> `cd ../` (Train folder)  
+`th run.lua`
+- Run demo. <br> `qlua run.lua -v ../videos/eLab.mp4 -downsampling 1 -x 0`
  
