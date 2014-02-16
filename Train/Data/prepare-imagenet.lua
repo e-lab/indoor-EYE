@@ -18,6 +18,7 @@ opt = lapp([[
    --save_test           (default false ) save test images. Helps to check data
    --save_train          (default false ) save train images. Helps to check data
    --subsample_name      (default elab  ) name of imagenet subsample.
+   --convert_class_names (default false ) convert csv class file to torch format  
 
    --src_test_data       (default test256m-data.t7  ) --file with compressed jpegs
    --src_test_info       (default test256m-info.t7  ) --file with labels, image sizes and paddings
