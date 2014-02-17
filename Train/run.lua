@@ -27,12 +27,12 @@ local title = [[
 opt = lapp(title .. [[
 
 Dataset's parameters
-   --side    (default 32    ) Training and testing image's side length (max 256)
+   --side    (default 46    ) Training and testing image's side length (max 256)
    --colour  (default true  ) True by default, allows to train on B&W if the flag is called
    --jitter  (default 0     ) Introduce random crop for loweing overfitting
    --distort (default false ) TODO
    --mmload  (default false ) memory mapping when loading data. Use with small RAM
-   --parts   (default true  ) use image parts instead of whole images 
+   --parts   (default false  ) use image parts instead of whole images 
 
 Learning parameters
    --learningRate      (default 5e-2)
@@ -48,7 +48,7 @@ To doing so, just call the flag <cleanRun>
    --cleanRun                                  run without loading any previously stored data
    --save_dir        (default './results/'   )
    --temp_dir        (default './temp-data/' )
-   --subsample_name  (default 'elab'         ) name of imagenet subsample. You can create several imagenet subsamples with prepare-imagenet script. 
+   --subsample_name  (default 'indoor51'         ) name of imagenet subsample. You can create several imagenet subsamples with prepare-imagenet script. 
    --data_sl         (default 'load'         ) save data images once and then load prepared data from temp file ([load]|save)
    --mean_sl         (default 'load'         ) save data mean once and then load prepared mean from temp file ([load]|save)
 
