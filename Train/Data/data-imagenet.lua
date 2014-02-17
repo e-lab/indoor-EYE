@@ -334,30 +334,132 @@ function prepare_async(data_file, info_file)
 
 end
 
-function prepare_sync(data_file, info_file, save_file, save_act)
+function load_data(data_file, info_file, sfile, fact)
+-- 1. Load and decompress imagenet data
+      --With opt.parts option store original images (3, 256, 256), else store resized images
 
-   local data = load_raw_imagenet(data_file, info_file, save_file, save_act)
+-- 2. Define prepareBatch and copyBatch functions
+      --prepareBatch: creates next batch for training or testing
+      --copyBatch:    returns prepared batch 
+-------------------------------------------------------------------------------
 
-   local nsamples = data.data:size(1)
-   local samples = torch.FloatTensor(opt.batchSize, opt.ncolors, opt.height, opt.width)
-   local targets = torch.FloatTensor(opt.batchSize)
-   local shuffle = torch.randperm(nsamples):type('torch.LongTensor')
+   local samples = torch.FloatTensor(opt.batchSize, opt.ncolors, opt.height, opt.width) --batch images
+   local targets = torch.FloatTensor(opt.batchSize)                                     --batch labels
 
-   local samplesCUDA = {}
-   local targetsCUDA = {}
+   local samplesCUDA = {}  --cuda batch images
+   local targetsCUDA = {}  --cuda batch labels
    if opt.cuda then
       samplesCUDA = samples:clone():cuda()
       targetsCUDA = targets:clone():cuda()
    end
 
+   print('==> Getting data')
+   
+   --here loaded data is stored
+   local data = {}
+
+   if fact == 'load' and paths.filep(opt.temp_dir .. sfile) then
+      --load previously saved data
+
+      local f = opt.temp_dir .. sfile 
+      print('======> Loading previously saved data from file ' .. f)
+      data = torch.load(f)
+
+   else
+      
+      -------------------------------------------------------------------------------
+      --define sizes
+
+      local w = opt.width  --final data width
+      local h = opt.height --final data height
+
+      local sw = opt.width --stored data width
+      local sh = opt.height --stored data height 
+      
+      if opt.parts then
+         --store big images
+         sw = 128
+         sh = 128
+      end
+
+      if opt.jitter > 0 and not opt.parts then
+         --store larger images in case of jitter      
+         sw = sw + opt.jitter
+         sh = sh + opt.jitter
+      end
+      -------------------------------------------------------------------------------
+      --load and decompress images
+
+      print('=====> Loading info data from file: ' .. info_file)
+      local d = torch.load(info_file) --data from info_file: labels, image sizes and offsets 
+
+      local jpegs = torch.ByteStorage(data_file) --compressed images
+      local jpegs_p   = ffi.cast('unsigned char *', ffi.cast('intptr_t', torch.data(jpegs)))
+      local offsets_p = ffi.cast('unsigned long *', ffi.cast('intptr_t', torch.data(d.offsets)))
+      local sizes_p   = ffi.cast('unsigned long *', ffi.cast('intptr_t', torch.data(d.sizes)))
+      local gm = require 'graphicsmagick'
+
+      local n = d.labels:size(1) 
+      data.data = torch.FloatTensor(n, opt.ncolors, sh, sw) --stored images
+      data.labels = torch.Tensor(n)
+      data.imagenet_labels = torch.Tensor(n)
+
+      print('=====> Loading and decompressing jpegs from file: ' .. data_file)
+      for i = 1, n do
+
+         xlua.progress(i, n)
+
+         local offset = tonumber(offsets_p[i-1] - 1) --offset of compressed image
+         local size = tonumber(sizes_p[i-1])         --size of compressed image in bytes
+         local jpegblob = jpegs_p + offset           --pointer to compressed image
+
+         --decompress image
+         local im = gm.Image():fromBlob(jpegblob,size):toTensor('float','RGB','DHW',true)
+         
+         --extract square patch (256x256)         
+         im = extract_square_patch(im) 
+         
+         --scale image
+         --if not opt.parts then 
+            im = image.scale(im, sw, sh)
+         --end
+
+         --global normalization
+         for j = 1, opt.ncolors do
+            im[j]:add(-global_mean[j])
+            im[j]:div(global_std[j])
+         end
+
+         data.data[i] = im
+         data.labels[i] = d.labels[i] --subsample label id
+         data.imagenet_labels[i] = d.imagenet_labels[i] --original imagenet label
+
+      end
+
+      data.classes = d.classes
+
+      if fact == 'save' then
+         --save data
+
+         local f = opt.temp_dir .. sfile
+         print('======> saving data to file ' .. f)
+         torch.save(f, data)
+
+      end
+
+   end
+-------------------------------------------------------------------------------
+
+   local n = data.labels:size(1) 
+   local shuffle = torch.randperm(n):type('torch.LongTensor')
    data.keep = {
       shuffle = shuffle,
       samples = samples,
       targets = targets
    }
 
-   -- prepare batch
    local function prepareBatch(idx, istest)
+   -- prepare next batch
 
       local bs = opt.batchSize
 
@@ -374,7 +476,14 @@ function prepare_sync(data_file, info_file, save_file, save_act)
 
          end
 
-         samples[i] = data.data[j][{{},{y1, y1 + opt.height - 1}, {x1, x1 + opt.width - 1}}]
+         if opt.parts then
+
+            local x1 = math.floor(torch.uniform(1, data.data:size(4) - w + 1))
+            local y1 = math.floor(torch.uniform(1, data.data:size(3) - h + 1))
+
+         end
+
+         samples[i] = data.data[j][{{},{y1, y1 + h - 1}, {x1, x1 + w - 1}}]
          targets[i] = data.labels[j]
 
       end
@@ -386,8 +495,8 @@ function prepare_sync(data_file, info_file, save_file, save_act)
 
    end
 
-   -- copy batch
    local function copyBatch()
+   -- copy batch
 
       if opt.cuda then
          return samplesCUDA, targetsCUDA

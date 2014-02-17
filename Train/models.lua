@@ -128,7 +128,7 @@ function get_model1()
 
    end
 
-   print(model.modules)
+   --print(model.modules)
    return model, loss
 
 end

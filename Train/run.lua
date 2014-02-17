@@ -27,29 +27,30 @@ local title = [[
 opt = lapp(title .. [[
 
 Dataset's parameters
-   --side    (default 46    ) Training and testing image's side length (max 256)
+   --side    (default 32    ) Training and testing image's side length (max 256)
    --colour  (default true  ) True by default, allows to train on B&W if the flag is called
    --jitter  (default 0     ) Introduce random crop for loweing overfitting
    --distort (default false ) TODO
    --mmload  (default false ) memory mapping when loading data. Use with small RAM
+   --parts   (default true  ) use image parts instead of whole images 
 
 Learning parameters
-   --learningRate      (default 5e-3)
+   --learningRate      (default 5e-2)
    --learningRateDecay (default 1e-7)
    --weightDecay       (default 0   )
    --momentum          (default 0   )
    --batchSize         (default 32  )
-   --niters            (default 20  )
+   --niters            (default 100  )
 
-Saving parameters
-Be carefull!!! you need to save data when you change data options like width
+Saving parameters and temporary data
+Be carefull!!! you need to recompute temporary data when you change data options like width
 To doing so, just call the flag <cleanRun>
    --cleanRun                                  run without loading any previously stored data
    --save_dir        (default './results/'   )
    --temp_dir        (default './temp-data/' )
-   --subsample_name  (default 'elab'         ) name of imagenet subsample. You can create several imagenet subsamples with data-prepare script. 
-   --data_sl         (default 'load'         ) save once and then load prepared data from temp file ([load]|save)
-   --mean_sl         (default 'load'         ) save once and then load prepared mean from temp file ([load]|save)
+   --subsample_name  (default 'elab'         ) name of imagenet subsample. You can create several imagenet subsamples with prepare-imagenet script. 
+   --data_sl         (default 'load'         ) save data images once and then load prepared data from temp file ([load]|save)
+   --mean_sl         (default 'load'         ) save data mean once and then load prepared mean from temp file ([load]|save)
 
 On screen output
    --plot                                  plot training and testing accuracies
@@ -147,8 +148,8 @@ if opt.mmload then
    trainData = prepare_async(train_data_file, train_info_file)
 else
    --load all data at once
-   testData = prepare_sync(test_data_file, test_info_file, 'test.t7', opt.data_sl)
-   trainData = prepare_sync(train_data_file, train_info_file, 'train.t7', opt.data_sl)
+   testData = load_data(test_data_file, test_info_file, 'test.t7', opt.data_sl)
+   trainData = load_data(train_data_file, train_info_file, 'train.t7', opt.data_sl)
 end
 torch.manualSeed(opt.seed)
 
