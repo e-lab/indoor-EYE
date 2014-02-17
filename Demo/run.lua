@@ -66,23 +66,19 @@ function init_net()
    --print(data.u1net.modules)
    --print(data.classifier.modules)
    
-   local classes = {'computer-mouse', 'printer', 'cellphone', 'ipod', 'cup', 'laptop', 'keyboard', 
-                    'website', 'desktop-computer', 'monitor', 'desk', 'bottle-of-water', 'trash-can'}
+   local classes = {'computer-mouse', 'printer', 'cellphone', 'cup', 'laptop', 'keyboard', 
+                    'desk', 'bottle-of-water', 'trash-can'}
 
    local colours = {[ 1] = {0.7, 0.7, 0.3}, -- mouse
 				        [ 2] = {0.4, 0.4, 0.8}, -- printer
 				        [ 3] = {0.0, 0.9, 0.0}, -- phone
-				        [ 4] = {1.0, 0.0, 0.3}, -- ipod
-				        [ 5] = {0.3, 0.3, 0.3}, -- cup
-				        [ 6] = {1.0, 0.1, 0.1}, -- laptop
-				        [ 7] = {0.0, 0.7, 0.9}, -- keyboard
-				        [ 8] = {0.0, 0.0, 0.0}, -- website
-				        [ 9] = {0.5, 0.5, 0.0}, -- computer
-				        [ 10] = {0.2, 0.4, 0.4}, -- monitor
-				        [ 11] = {0.2, 0.3, 0.5}, -- desk
-				        [ 12] = {0.1, 0.2, 0.7}, -- bottle
-				        [ 13] = {0.0, 0.1, 0.9}} -- trash
-
+				        [ 4] = {1.0, 0.0, 0.3}, -- cup
+				        [ 5] = {0.3, 0.3, 0.3}, -- laptop
+				        [ 6] = {1.0, 0.1, 0.1}, -- keyboard
+				        [ 7] = {0.0, 0.7, 0.9}, -- desk
+				        [ 8] = {0.0, 0.0, 0.0}, -- bottle
+				        [ 9] = {0.5, 0.5, 0.0}} -- trashcan
+			
    return data, classes, colours
 
 end
@@ -115,7 +111,7 @@ function get_distributions(alg_data, features)
 	nfy = math.floor(features:size(2) / stride) 
 	nfx = math.floor(features:size(3) / stride) 
    
-	local distributions = torch.Tensor(13, nfy, nfx)
+	local distributions = torch.Tensor(#classes, nfy, nfx)
 	local f_list = torch.Tensor(nfx * nfy, features:size(1), d, d)
 
 	local i = 0
