@@ -192,6 +192,7 @@ function train_and_test(trainData, testData, model, loss, plot, verbose)
          print(string.format("======> Time to learn 1 iteration = %.2f sec", time))
          print(string.format("======> Time to train 1 sample = %.2f ms", time / trainData.data:size(1) * 1000))
          print(string.format("======> Train CE error: %.2f", ce_train_error))
+         
          print_confusion_matrix(train_confusion, '======> Train')
 
          --print weights and gradweights statistics
