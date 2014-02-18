@@ -340,7 +340,7 @@ function load_data(data_file, info_file, sfile, fact)
 
 -- 2. Define prepareBatch and copyBatch functions
       --prepareBatch: creates next batch for training or testing
-      --copyBatch:    returns prepared batch 
+      --copyBatch:    returns prepared batch
 -------------------------------------------------------------------------------
 
    local samples = torch.FloatTensor(opt.batchSize, opt.ncolors, opt.height, opt.width) --batch images
@@ -354,19 +354,19 @@ function load_data(data_file, info_file, sfile, fact)
    end
 
    print('==> Getting data')
-   
+
    --here loaded data is stored
    local data = {}
 
    if fact == 'load' and paths.filep(opt.temp_dir .. sfile) then
       --load previously saved data
 
-      local f = opt.temp_dir .. sfile 
+      local f = opt.temp_dir .. sfile
       print('======> Loading previously saved data from file ' .. f)
       data = torch.load(f)
 
    else
-      
+
       -------------------------------------------------------------------------------
       --define sizes
 
@@ -374,8 +374,8 @@ function load_data(data_file, info_file, sfile, fact)
       local h = opt.height --final data height
 
       local sw = opt.width --stored data width
-      local sh = opt.height --stored data height 
-      
+      local sh = opt.height --stored data height
+
       if opt.parts then
          --store big images
          sw = 128
@@ -383,7 +383,7 @@ function load_data(data_file, info_file, sfile, fact)
       end
 
       if opt.jitter > 0 and not opt.parts then
-         --store larger images in case of jitter      
+         --store larger images in case of jitter
          sw = sw + opt.jitter
          sh = sh + opt.jitter
       end
@@ -391,7 +391,7 @@ function load_data(data_file, info_file, sfile, fact)
       --load and decompress images
 
       print('=====> Loading info data from file: ' .. info_file)
-      local d = torch.load(info_file) --data from info_file: labels, image sizes and offsets 
+      local d = torch.load(info_file) --data from info_file: labels, image sizes and offsets
 
       local jpegs = torch.ByteStorage(data_file) --compressed images
       local jpegs_p   = ffi.cast('unsigned char *', ffi.cast('intptr_t', torch.data(jpegs)))
@@ -399,7 +399,7 @@ function load_data(data_file, info_file, sfile, fact)
       local sizes_p   = ffi.cast('unsigned long *', ffi.cast('intptr_t', torch.data(d.sizes)))
       local gm = require 'graphicsmagick'
 
-      local n = d.labels:size(1) 
+      local n = d.labels:size(1)
       data.data = torch.FloatTensor(n, opt.ncolors, sh, sw) --stored images
       data.labels = torch.Tensor(n)
       data.imagenet_labels = torch.Tensor(n)
@@ -415,12 +415,12 @@ function load_data(data_file, info_file, sfile, fact)
 
          --decompress image
          local im = gm.Image():fromBlob(jpegblob,size):toTensor('float','RGB','DHW',true)
-         
-         --extract square patch (256x256)         
-         im = extract_square_patch(im) 
-         
+
+         --extract square patch (256x256)
+         im = extract_square_patch(im)
+
          --scale image
-         --if not opt.parts then 
+         --if not opt.parts then
             im = image.scale(im, sw, sh)
          --end
 
@@ -450,7 +450,7 @@ function load_data(data_file, info_file, sfile, fact)
    end
 -------------------------------------------------------------------------------
 
-   local n = data.labels:size(1) 
+   local n = data.labels:size(1)
    local shuffle = torch.randperm(n):type('torch.LongTensor')
    data.keep = {
       shuffle = shuffle,

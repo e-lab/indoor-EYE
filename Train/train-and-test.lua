@@ -1,6 +1,7 @@
 -------------------------------------------------------------------------------
 -- Functions for training and testing a classifier
 -- Artem Kuharenko
+-- Alfredo Canziani, Feb 2014
 -------------------------------------------------------------------------------
 
 require 'torch'   -- torch
@@ -161,7 +162,7 @@ function train_and_test(trainData, testData, model, loss, plot, verbose)
    trainTestTime.test  = {}
    for _,t in pairs(trainTestTime) do
       t.perSample = torch.Tensor(opt.niters)
-      t.total     = torch.Tensor(opt.niters)
+      t.total     = torch.zeros(opt.niters)
    end
 
    --allocate memory for batch of images
@@ -244,7 +245,7 @@ function train_and_test(trainData, testData, model, loss, plot, verbose)
          print(string.format("======> Time to test 1 sample = %.2f ms", time / testData.data:size(1) * 1000))
          print(string.format("======> Test CE error: %.2f", ce_test_error))
          print_confusion_matrix(test_confusion, '======> Test')
-         print('\n')
+         print()
       end
       -------------------------------------------------------------------------------
 
@@ -265,6 +266,10 @@ function train_and_test(trainData, testData, model, loss, plot, verbose)
       --save model every 5 iterations
       if (i % 5 == 0) then
          saveNet(model, opt.save_dir .. 'model-' .. i .. '.net', verbose)
+         statFile:write(string.format('\nTraining & testing time for %d epochs: %.2f minutes\n', i, (trainTestTime.train.total:sum() + trainTestTime.test.total:sum())/60))
+         statFile:write(string.format('Average training time per sample: %.3f ms\n', trainTestTime.train.perSample[{ {i-4,i} }]:mean() * 1000))
+         statFile:write(string.format('Average testing time per sample: %.3f ms\n', trainTestTime.test.perSample[{ {i-4,i} }]:mean() * 1000))
+         statFile:flush()
       end
 
       train_confusion:zero()
@@ -288,17 +293,46 @@ function train_and_test(trainData, testData, model, loss, plot, verbose)
    test_acc = test_acc / 5
    train_acc = train_acc / 5
 
-   -------------------------------------------------------------------------------
+   --compute train and test cross entropy error. Average over last 5 iterations
+   local test_errs = ce_logger.symbols['ce test error']
+   local train_errs = ce_logger.symbols['ce train error']
+   local test_err = 0
+   local train_err = 0
 
+   for i = 0, 4 do
+      test_err = test_err + test_errs[#test_errs - i]
+      train_err = train_err + train_errs[#train_errs - i]
+   end
+
+   test_err = test_err / 5
+   train_err = train_err / 5
+
+   -- Output statistics ----------------------------------------------------------
+   str = {}
    -- printing average timing
-   print              ('==> Timing')
+   str[ 1] = string.format('\n\n')
+   str[ 2] = string.format('==> Global statistics\n')
+   str[ 3] = string.format('==> Timing\n')
    -- Total time
-   print(string.format('    Total time for training the network: %.2f minutes', trainTestTime.train.total:sum()/60))
-   print(string.format('    Total time for testing the network: %.2f minutes', trainTestTime.test.total:sum()/60))
-   print(string.format('    Total time: %.2f minutes', (trainTestTime.train.total:sum() + trainTestTime.test.total:sum())/60))
+   str[ 4] = string.format('    Total time for training the network: %.2f minutes\n', trainTestTime.train.total:sum()/60)
+   str[ 5] = string.format('    Total time for testing the network: %.2f minutes\n', trainTestTime.test.total:sum()/60)
+   str[ 6] = string.format('    Total time: %.2f minutes\n', (trainTestTime.train.total:sum() + trainTestTime.test.total:sum())/60)
    -- Per sample time
-   print(string.format('    Average training time per sample: %.3f ms', trainTestTime.train.perSample:mean() * 1000))
-   print(string.format('    Average testing time per sample: %.3f ms', trainTestTime.test.perSample:mean() * 1000))
+   str[ 7] = string.format('    Average training time per sample: %.3f ms\n', trainTestTime.train.perSample:mean() * 1000)
+   str[ 8] = string.format('    Average testing time per sample: %.3f ms\n', trainTestTime.test.perSample:mean() * 1000)
+   -- Performance
+   str[ 9] = string.format('==> Performance\n')
+   str[10] = string.format('    Train accuracy = %.3f%%\n', train_acc)
+   str[11] = string.format('    Test accuracy = %.3f%%\n', test_acc)
+   str[12] = string.format('    Train cross-entropy error = %.3f\n', train_err)
+   str[13] = string.format('    Test cross-entropy error = %.3f\n', test_err)
+
+   -- Printing on screen
+   for _,s in ipairs(str) do io.write(s) end
+
+   -- Logging data on file
+   for _,s in ipairs(str) do statFile:write(s) end
+   statFile:close()
 
    return train_acc, test_acc
 

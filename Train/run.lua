@@ -21,7 +21,7 @@ local title = [[
          | | | | | (_| | (_) | (_) | |         | |\  | |____   | |
          |_|_| |_|\__,_|\___/ \___/|_|         |_| \_|______|  |_|
 
- ]]
+]]
 
 -- Options --------------------------------------------------------------------
 opt = lapp(title .. [[
@@ -32,7 +32,7 @@ Dataset's parameters
    --jitter  (default 0     ) Introduce random crop for loweing overfitting
    --distort (default false ) TODO
    --mmload  (default false ) memory mapping when loading data. Use with small RAM
-   --parts   (default false  ) use image parts instead of whole images 
+   --parts   (default false  ) use image parts instead of whole images
 
 Learning parameters
    --learningRate      (default 5e-2)
@@ -48,7 +48,7 @@ To doing so, just call the flag <cleanRun>
    --cleanRun                                  run without loading any previously stored data
    --save_dir        (default './results/'   )
    --temp_dir        (default './temp-data/' )
-   --subsample_name  (default 'indoor51'         ) name of imagenet subsample. You can create several imagenet subsamples with prepare-imagenet script. 
+   --subsample_name  (default 'indoor51'     ) name of imagenet subsample. You can create several imagenet subsamples with prepare-imagenet script.
    --data_sl         (default 'load'         ) save data images once and then load prepared data from temp file ([load]|save)
    --mean_sl         (default 'load'         ) save data mean once and then load prepared mean from temp file ([load]|save)
 
@@ -179,8 +179,17 @@ function run(trainData, testData)
 
 end
 
-train_acc, test_acc = run(trainData, testData)
+-- Logging statistics ----------------------------------------------------------
+-- Open file in re-write mode (NOT append)
+statFile = io.open(opt.save_dir .. 'stat.txt','w+')
+-- Writing title
+statFile:write(title)
+-- Collecting input arguments and writing them to file
+local inputArg = ''
+for i = 1,#arg do inputArg = inputArg .. arg[i] .. ' '; end
+statFile:write(string.format('User command line input: %s\n',inputArg))
+statFile:flush()
 
-print(string.format('==> Train accuracy = %.3f', train_acc) .. '%')
-print(string.format('==> Test accuracy = %.3f', test_acc) .. '%')
+-- Training and testing --------------------------------------------------------
+train_acc, test_acc = run(trainData, testData)
 
