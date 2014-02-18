@@ -155,6 +155,14 @@ function train_and_test(trainData, testData, model, loss, plot, verbose)
    local logger = optim.Logger(opt.save_dir .. 'logger.log')
    --init logger for train and test cross-entropy error
    local ce_logger = optim.Logger(opt.save_dir .. 'celogger.log')
+   --init train and test time
+   local trainTestTime = {}
+   trainTestTime.train = {}
+   trainTestTime.test  = {}
+   for _,t in pairs(trainTestTime) do
+      t.perSample = torch.Tensor(opt.niters)
+      t.total     = torch.Tensor(opt.niters)
+   end
 
    --allocate memory for batch of images
    ims = torch.Tensor(opt.batchSize, ivch, ivhe, ivwi)
@@ -177,6 +185,8 @@ function train_and_test(trainData, testData, model, loss, plot, verbose)
       train(trainData, model, loss)
 
       time = sys.clock() - time
+      trainTestTime.train.perSample[i] = time / trainData.data:size(1)
+      trainTestTime.train.total    [i] = time
 
       if verbose then
          print(string.format("======> Time to learn 1 iteration = %.2f sec", time))
@@ -225,6 +235,8 @@ function train_and_test(trainData, testData, model, loss, plot, verbose)
       if verbose then print('==> Test ' .. i) end
       test(testData, model, loss)
       time = sys.clock() - time
+      trainTestTime.test.perSample[i] = time / testData.data:size(1)
+      trainTestTime.test.total    [i] = time
 
       if verbose then
          print(string.format("======> Time to test 1 iteration = %.2f sec", time))
@@ -260,6 +272,7 @@ function train_and_test(trainData, testData, model, loss, plot, verbose)
    end
 
    -------------------------------------------------------------------------------
+
    --compute train and test accuracy. Average over last 5 iterations
    local test_accs = logger.symbols['% test accuracy']
    local train_accs = logger.symbols['% train accuracy']
@@ -274,11 +287,17 @@ function train_and_test(trainData, testData, model, loss, plot, verbose)
    test_acc = test_acc / 5
    train_acc = train_acc / 5
 
-   if verbose then
-      print('final train accuracy = ' .. train_acc)
-      print('final test accuracy = ' .. test_acc)
-   end
    -------------------------------------------------------------------------------
+
+   -- printing average timing
+   print              ('==> Timing')
+   -- Total time
+   print(string.format('    Total time for training the network: %.2f minutes', trainTestTime.train.total:sum()/60))
+   print(string.format('    Total time for testing the network: %.2f minutes', trainTestTime.test.total:sum()/60))
+   print(string.format('    Total time: %.2f minutes', (trainTestTime.train.total:sum() + trainTestTime.test.total:sum())/60))
+   -- Per sample time
+   print(string.format('    Average training time per sample: %.3f ms', trainTestTime.train.perSample:mean() * 1000))
+   print(string.format('    Average testing time per sample: %.3f ms', trainTestTime.test.perSample:mean() * 1000))
 
    return train_acc, test_acc
 
