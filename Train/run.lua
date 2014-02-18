@@ -11,6 +11,7 @@ require 'nn'
 require 'torchffi'
 require 'pl'
 require 'usefulFunctions'
+require 'sys'
 
 -- Title definition -----------------------------------------------------------
 local title = [[
@@ -184,10 +185,12 @@ end
 statFile = io.open(opt.save_dir .. 'stat.txt','w+')
 -- Writing title
 statFile:write(title)
+-- Writing currect commit hash
+statFile:write(string.format('Current commit hash: %s\n',sys.execute('git rev-parse HEAD')))
 -- Collecting input arguments and writing them to file
 local inputArg = ''
-for i = 1,#arg do inputArg = inputArg .. arg[i] .. ' '; end
-statFile:write(string.format('User command line input: %s\n',inputArg))
+for i = 1,#arg do inputArg = inputArg .. ' ' .. arg[i]; end
+statFile:write(string.format('User command line input:%s\n',inputArg))
 statFile:flush()
 
 -- Training and testing --------------------------------------------------------
