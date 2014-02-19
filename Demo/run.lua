@@ -1,9 +1,5 @@
 ------------------------------------------------------------
--- Road-Net demo by e-Lab
---
--- Wed Nov 13 10:28:14 EST 2013
--- 
--- E. Culurciello, Alfredo Canziani, Artem Kuharenko
+-- Alfredo Canziani, Artem Kuharenko
 -- original code and net training by Clement Farabet
 --
 ------------------------------------------------------------
@@ -53,6 +49,43 @@ if opt.runnnx then
 end
 
 ---------------------------------------------------------------------------------
+--functions to convert cuda model to float model
+--see https://github.com/Atcold/Torch7-tools/blob/master/netConverter.lua
+
+function smartCopy(cudaModule,floatNetwork)
+   -- if cudaModule.__typename == 'nn.Sequential' then
+   --    floatNetwork = nn.Sequential()
+   if cudaModule.__typename == 'nn.SpatialConvolutionCUDA' then
+      print(' + Converting <nn.SpatialConvolutionCUDA> into <nn.SpatialConvolution>')
+      floatNetwork:add(nn.SpatialConvolution(cudaModule.nInputPlane, cudaModule.nOutputPlane, cudaModule.kW, cudaModule.kH))
+      floatNetwork.modules[#floatNetwork.modules].gradBias   = nil
+      floatNetwork.modules[#floatNetwork.modules].gradWeight = nil
+      floatNetwork.modules[#floatNetwork.modules].gradInput  = nil
+      floatNetwork.modules[#floatNetwork.modules].weight     = cudaModule.weight:transpose(4,3):transpose(3,2):transpose(2,1):float()
+      floatNetwork.modules[#floatNetwork.modules].bias       = cudaModule.bias:float()
+   elseif cudaModule.__typename == 'nn.SpatialMaxPoolingCUDA' then
+      print(' + Converting <nn.SpatialMaxPoolingCUDA> into <nn.SpatialMaxPooling>')
+      floatNetwork:add(nn.SpatialMaxPooling(cudaModule.kW, cudaModule.kH, cudaModule.dW, cudaModule.dH))
+      --floatNetwork.modules[#floatNetwork.modules].indices    = nil
+      floatNetwork.modules[#floatNetwork.modules].gradInput  = nil
+   elseif cudaModule.__typename ~= 'nn.Transpose' then
+      print(' + Copying <' .. cudaModule.__typename .. '>')
+      floatNetwork:add(cudaModule)
+   end
+end
+
+function convert(cudaNetwork)
+   local floatNetwork = nn.Sequential()
+   if cudaNetwork.modules then
+      for _,a in ipairs(cudaNetwork.modules) do
+         smartCopy(a,floatNetwork)
+      end
+   end
+   return floatNetwork
+end
+---------------------------------------------------------------------------------
+
+---------------------------------------------------------------------------------
 --Define neuralnet functions
 ---------------------------------------------------------------------------------
 function init_net()
@@ -61,12 +94,14 @@ function init_net()
    print('loading unsup model')
    data.preproc = torch.load('../Train/results/preproc.t7')
    local model = torch.load('../Train/results/model-5.net')
-   data.u1net = model:get(1)
+
+   local cnn = model:get(1)
+   data.cnn = convert(cnn)
    data.classifier = model:get(2)
    --print(data.u1net.modules)
    --print(data.classifier.modules)
    
-   local classes = {'computer-mouse', 'printer', 'cellphone', 'cup', 'laptop', 'keyboard', 
+   local classes = {'mouse', 'printer', 'cellphone', 'cup', 'laptop', 'keyboard', 
                     'desk', 'bottle-of-water', 'trash-can'}
 
    local colours = {[ 1] = {0.7, 0.7, 0.3}, -- mouse
@@ -76,7 +111,7 @@ function init_net()
 				        [ 5] = {0.3, 0.3, 0.3}, -- laptop
 				        [ 6] = {1.0, 0.1, 0.1}, -- keyboard
 				        [ 7] = {0.0, 0.7, 0.9}, -- desk
-				        [ 8] = {0.0, 0.0, 0.0}, -- bottle
+				        [ 8] = {0.0, 0.0, 1.0}, -- bottle
 				        [ 9] = {0.5, 0.5, 0.0}} -- trashcan
 			
    return data, classes, colours
@@ -96,7 +131,7 @@ end
 
 function get_features(alg_data, frame)
 
-	features = alg_data.u1net:forward(frame)
+	features = alg_data.cnn:forward(frame)
    print(#features)
    return features
 
@@ -307,9 +342,11 @@ function display()
    end
 end
 
+times = 0
 -- setup gui
 while win:valid() do
    process()
+   times = times + 1
    win:gbegin()
    win:showpage()
    display()
