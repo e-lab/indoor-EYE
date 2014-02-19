@@ -145,8 +145,8 @@ global_mean, global_std = get_global_mean_async(train_data_file, train_info_file
 --prepare data
 if opt.mmload then
    --use memory mapping
-   testData = prepare_async(test_data_file, test_info_file)
-   trainData = prepare_async(train_data_file, train_info_file)
+   testData = load_data_mm(test_data_file, test_info_file)
+   trainData = load_data_mm(train_data_file, train_info_file)
 else
    --load all data at once
    testData = load_data(test_data_file, test_info_file, 'test.t7', opt.data_sl)

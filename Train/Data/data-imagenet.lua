@@ -24,70 +24,6 @@ function extract_square_patch(sample)
 
 end
 
-function load_raw_imagenet(src_data_file, src_info_file, sfile, fact)
-   --load whole resized imagenet images from memory-mapped file
-
-   print('==> Loading raw imagenet')
-   local dt = {}
-
-   if fact == 'load' and paths.filep(opt.temp_dir .. sfile) then
-      print('======> Loading data from file')
-      dt = torch.load(opt.temp_dir .. sfile)
-   else
-
-      local opt = opt or {}
-      local w = opt.width + opt.jitter
-      local h = opt.height + opt.jitter
-
-      local d = torch.load(src_info_file)
-      local jpegs = torch.ByteStorage(src_data_file)
-
-      local jpegs_p   = ffi.cast('unsigned char *', ffi.cast('intptr_t', torch.data(jpegs)))
-      local offsets_p = ffi.cast('unsigned long *', ffi.cast('intptr_t', torch.data(d.offsets)))
-      local sizes_p   = ffi.cast('unsigned long *', ffi.cast('intptr_t', torch.data(d.sizes)))
-      local gm = require 'graphicsmagick'
-
-      local n = d.labels:size(1)
-      dt.data = torch.FloatTensor(n, opt.ncolors, h, w)
-      dt.labels = torch.Tensor(n)
-      dt.imagenet_labels = torch.Tensor(n)
-
-      for i = 1, n do
-
-         xlua.progress(i, n)
-
-         local offset = tonumber(offsets_p[i-1] - 1)
-         local size = tonumber(sizes_p[i-1])
-         local jpegblob = jpegs_p + offset
-
-         local sample = gm.Image():fromBlob(jpegblob,size):toTensor('float','RGB','DHW',true)
-         sample = extract_square_patch(sample)
-         sample = image.scale(sample, w, h)
-
-         for j = 1, opt.ncolors do
-            sample[j]:add(-global_mean[j])
-            sample[j]:div(global_std[j])
-         end
-
-         dt.data[i] = sample
-         dt.labels[i] = d.labels[i]
-         dt.imagenet_labels[i] = d.imagenet_labels[i]
-
-      end
-
-      dt.classes = d.classes
-
-      if fact == 'save' then
-         print('======> saving data')
-         torch.save(opt.temp_dir .. sfile, dt)
-      end
-
-   end
-
-   return dt
-
-end
-
 ----------------------------------------------------------------------
 --scripts for async load with memory mapping
 
@@ -96,7 +32,7 @@ end
 local c,h,w=3, opt.height, opt.width
 local bs = opt.batchSize
 
-function prepare_async(data_file, info_file)
+function load_data_mm(data_file, info_file)
 
    local dataset = torch.load(info_file)
    dataset.data = torch.ByteStorage(data_file)
