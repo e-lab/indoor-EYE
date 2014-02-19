@@ -25,8 +25,8 @@ opt = lapp([[
    --src_train_data      (default train256m-data.t7)
    --src_train_info      (default train256m-info.t7)
 
-   --width               (default 46) --width of data
-   --height              (default 46) --height of data
+   --width               (default 46) --width of data. Only for show and save functions. 
+   --height              (default 46) --height of data. Only for show and save functions. 
    --ncolors             (default 3 )
    --batchSize           (default 32)
    --jitter              (default 0 )
@@ -90,12 +90,12 @@ global_std = {1, 1, 1}
 
 if opt.save_test or opt.show_test then
    --load raw resized test photos
-   testData = prepare_sync(test_data_file, test_info_file)
+   testData = load_data(test_data_file, test_info_file)
 end
 
 if opt.save_train or opt.show_train then
    --load raw resized train photos
-   trainData = prepare_sync(train_data_file, train_info_file)
+   trainData = load_data(train_data_file, train_info_file)
 end
 
 if opt.show_test then
