@@ -44,28 +44,28 @@ print(opt)
 dofile('data-imagenet.lua')
 -----------------------------------------------------------------------------------------------
 --set data paths
-data_folder = eex.datasetsPath() .. 'imagenet2012/'
+path = eex.datasetsPath() .. 'imagenet2012/'
 
 --source data files
-src_train_data = data_folder .. opt.src_train_data
-src_train_info = data_folder .. opt.src_train_info
-src_test_data = data_folder .. opt.src_test_data
-src_test_info = data_folder .. opt.src_test_info
+src_train_data = path .. opt.src_train_data
+src_train_info = path .. opt.src_train_info
+src_test_data = path .. opt.src_test_data
+src_test_info = path .. opt.src_test_info
 
 --destination subsample filenames
-train_data_file = data_folder .. 'train-data-' .. opt.subsample_name .. '.t7'
-train_info_file = data_folder .. 'train-info-' .. opt.subsample_name .. '.t7'
-test_data_file = data_folder .. 'test-data-' .. opt.subsample_name .. '.t7'
-test_info_file = data_folder .. 'test-info-' .. opt.subsample_name .. '.t7'
+train_data_file = path .. 'train-data-' .. opt.subsample_name .. '.t7'
+train_info_file = path .. 'train-info-' .. opt.subsample_name .. '.t7'
+test_data_file = path .. 'test-data-' .. opt.subsample_name .. '.t7'
+test_info_file = path .. 'test-info-' .. opt.subsample_name .. '.t7'
 
 if opt.convert_class_names then
    --convert class names from csv to torch table. Do this once.
-   print(data_folder .. 'classes.csv', data_folder .. 'classes.th')
-   csv2table(data_folder .. 'classes.csv', data_folder .. 'classes.th')
+   print(path .. 'classes.csv', path .. 'classes.th')
+   csv2table(path .. 'classes.csv', path .. 'classes.th')
 end
 
 --load class names
-imagenet_class_names = torch.load(data_folder .. 'classes.th')
+imagenet_class_names = torch.load(path .. 'classes.th')
 
 --load classes
 dofile('indoor-classes.lua')
