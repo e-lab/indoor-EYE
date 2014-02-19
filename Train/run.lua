@@ -49,7 +49,7 @@ To doing so, just call the flag <cleanRun>
    --cleanRun                                 run without loading any previously stored data
    --save_dir        (default './results/'  )
    --temp_dir        (default './temp-data/')
-   --subsample_name  (default 'indoor51'    ) name of imagenet subsample. You can create several imagenet subsamples with prepare-imagenet script.
+   --subsample_name  (default 'indoor51'    ) name of imagenet subsample. Possible options ('class51', 'elab')
    --data_sl         (default 'load'        ) save data images once and then load prepared data from temp file ([load]|save)
    --mean_sl         (default 'load'        ) save data mean once and then load prepared mean from temp file ([load]|save)
 
