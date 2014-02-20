@@ -17,16 +17,16 @@ opt = lapp([[
    --subsample_train     (default false) set true to create subsample of train imagenet images
    --save_test           (default false) save test images. Helps to check data
    --save_train          (default false) save train images. Helps to check data
-   --subsample_name      (default elab ) name of imagenet subsample.
+   --subsample_name      (default kitchen ) name of imagenet subsample.
    --convert_class_names (default false) convert csv class file to torch format
 
-   --src_test_data       (default test256m-data.t7 ) --file with compressed jpegs
-   --src_test_info       (default test256m-info.t7 ) --file with labels, image sizes and paddings
-   --src_train_data      (default train256m-data.t7)
-   --src_train_info      (default train256m-info.t7)
+   --src_test_data       (default test-data-imagenet.t7 ) --file with compressed jpegs
+   --src_test_info       (default test-info-imagenet.t7 ) --file with labels, image sizes and paddings
+   --src_train_data      (default train-data-imagenet.t7)
+   --src_train_info      (default train-info-imagenet.t7)
 
-   --width               (default 46) --width of data. Only for show and save functions. 
-   --height              (default 46) --height of data. Only for show and save functions. 
+   --width               (default 46) width of data. Only for show and save functions. 
+   --height              (default 46) height of data. Only for show and save functions. 
    --ncolors             (default 3 )
    --batchSize           (default 32)
    --jitter              (default 0 )
@@ -67,10 +67,8 @@ end
 --load class names
 imagenet_class_names = torch.load(path .. 'classes.th')
 
---load classes
+--define classes and class_names
 dofile('indoor-classes.lua')
-class_names = {}
-for i = 1, #classes do class_names[i] = classes[i][1] end
 
 if opt.subsample_test then
    --subsample test data of imagenet
