@@ -31,9 +31,9 @@ Dataset's parameters
    --side    (default 46   ) Training and testing image's side length (max 256)
    --colour  (default true ) True by default, allows to train on B&W if the flag is called
    --jitter  (default 0    ) Introduce random crop for loweing overfitting
-   --distort (default false) TODO
-   --mmload  (default false) memory mapping when loading data. Use with small RAM
-   --parts   (default false) use image parts instead of whole images
+   --distort                 TODO
+   --mmload                  Memory mapping when loading data. Use with small RAM
+   --parts                   Use image parts instead of whole images
 
 Learning parameters
    --learningRate      (default 5e-2)
@@ -46,19 +46,19 @@ Learning parameters
 Saving parameters and temporary data
 Be carefull!!! you need to recompute temporary data when you change data options like width
 To doing so, just call the flag <cleanRun>
-   --cleanRun                                 run without loading any previously stored data
+   --cleanRun                                 Run without loading any previously stored data
    --save_dir        (default './results/'  )
    --temp_dir        (default './temp-data/')
-   --subsample_name  (default 'indoor51'    ) name of imagenet subsample. Possible options ('class51', 'elab')
-   --data_sl         (default 'load'        ) save data images once and then load prepared data from temp file ([load]|save)
-   --mean_sl         (default 'load'        ) save data mean once and then load prepared mean from temp file ([load]|save)
+   --subsample_name  (default 'indoor51'    ) Name of imagenet subsample. Possible options ('class51', 'elab')
+   --data_sl         (default 'load'        ) Save data images once and then load prepared data from temp file ([load]|save)
+   --mean_sl         (default 'load'        ) Save data mean once and then load prepared mean from temp file ([load]|save)
 
 On screen output
-   --plot                                  plot training and testing accuracies
-   --verbose                (default true) show more output on screen
-   --confusion_matrix_tab   (default 3   ) number of tabs between numbers in print of confusion matrix
-   --print_confusion_matrix                print confusion matrix after training and testing
-   --print_weight_stat      (default true) print number of neuralnet weights which are lower 1e-5 and higher 1e+2
+   --plot                                  Plot training and testing accuracies
+   --verbose                (default true) Show more output on screen
+   --confusion_matrix_tab   (default 3   ) Number of tabs between numbers in print of confusion matrix
+   --print_confusion_matrix                Print confusion matrix after training and testing
+   --print_weight_stat      (default true) Print number of neuralnet weights which are lower 1e-5 and higher 1e+2
 
 CUDA parameters
    --cuda  (default true)
