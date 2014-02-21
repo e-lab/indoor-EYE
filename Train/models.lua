@@ -8,7 +8,7 @@ function get_model1()
    local nlayers = 1 --number of (conv+pool+threshold) layers
    local nfeatures= {[0]=3, 32, 32} --number of feature maps in conv layers
    local filtsizes = {9, 5} --filter sizes in conv layers
-   local paddings = {0, 0} 
+   local paddings = {0, 0}
    local strides = {1, 1}
    local poolsizes = {2, 2}
 
@@ -89,7 +89,7 @@ function get_model1()
       nouts[nlayers + i] = linears[i]
       local linear_layer = nn.Linear(nouts[nlayers + i - 1], nouts[nlayers + i])
       linear_layer.printable = true
-      linear_layer.text = 'Linear layer' .. i
+      linear_layer.text = 'Linear layer ' .. i
       submodel2:add(linear_layer)
       submodel2:add(nn.Threshold(0, 0))
 
