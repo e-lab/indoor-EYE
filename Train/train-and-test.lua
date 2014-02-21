@@ -193,30 +193,30 @@ function train_and_test(trainData, testData, model, loss, plot, verbose)
          print(string.format("======> Time to learn 1 iteration = %.2f sec", time))
          print(string.format("======> Time to train 1 sample = %.2f ms", time / trainData.data:size(1) * 1000))
          print(string.format("======> Train CE error: %.2f", ce_train_error))
-         
+
          print_confusion_matrix(train_confusion, '======> Train')
 
          --print weights and gradweights statistics
          if opt.print_weight_stat then
 
-            for j = 1, #model.modules do
+            for _,seq in ipairs(model.modules) do
+               for _,m in ipairs(seq.modules) do
+                  if m.printable then
 
-               local m = model.modules[j]
-               if m.printable then
+                     local ws = m.weight:clone() --weights
+                     ws = ws:float():abs()
+                     local ws_small = ws:lt(1e-5):sum()
+                     local ws_big = ws:gt(1e+2):sum()
 
-                  local ws = m.weight:clone() --weights
-                  ws = ws:float():abs()
-                  local ws_small = ws:lt(1e-5):sum()
-                  local ws_big = ws:gt(1e+2):sum()
+                     local gws = m.gradWeight:clone() --gradweights
+                     gws = gws:float():abs()
+                     local gws_small = gws:lt(1e-5):sum()
+                     local gws_big = gws:gt(1e+2):sum()
 
-                  local gws = m.gradWeight:clone() --gradweights
-                  gws = gws:float():abs()
-                  local gws_small = gws:lt(1e-5):sum()
-                  local gws_big = gws:gt(1e+2):sum()
+                     print(m.text .. string.format(': number of small weights: %d, big weights: %d', ws_small, ws_big))
+                     print(m.text .. string.format(': number of small gradweights: %d, big gradweights: %d', gws_small, gws_big))
 
-                  print(m.text .. string.format(': number of small weights: %d, big weights: %d', ws_small, ws_big))
-                  print(m.text .. string.format(': number of small gradweights: %d, big gradweights: %d', gws_small, gws_big))
-
+                  end
                end
             end
 
