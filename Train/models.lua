@@ -123,7 +123,7 @@ function get_model1()
    for i = 0, nConvLayers + #neuronsPerLinearLayer do
 
       print(string.format(
-      '==> model layer %2d  -  spatial extent: %3dx%3d  |  feature maps: %3d  |  hidden units: %4d  |  output size: %6d  |  connections: %8d',
+      '==> model layer %2d  -  spatial extent: %3dx%3d  |  feature maps: %3d  |  hidden units: %4d  |  output size: %6d  |  connections: %9d',
       i, mapsizes[i], mapsizes[i], nFeatureMaps[i], nhiddens[i], nouts[i], nconnections[i]
       ))
 
