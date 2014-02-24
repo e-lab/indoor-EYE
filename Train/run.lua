@@ -76,9 +76,6 @@ for a,b in pairs(opt) do
    if (b == 'false') then opt[a] = false end
 end
 
--- Title ----------------------------------------------------------------------
-if opt.verbose then print(title)
-
 -- Aggiusting options ---------------------------------------------------------
    opt.width  = opt.side
    opt.height = opt.side
@@ -87,6 +84,9 @@ if opt.verbose then print(title)
       opt.data_sl = 'save'
       opt.mean_sl = 'save'
    end
+
+-- Title ----------------------------------------------------------------------
+if opt.verbose then print(title)
 
 -- Print options summary ------------------------------------------------------
    print('==> Options:')
