@@ -62,9 +62,13 @@ function get_model1()
       --get layer sizes
       local r1 = convLayer:forward(test_batch)
       local r2 = poolLayer:forward(r1)
---      print(#convLayer.output)
---      print(#poolLayer.output)
-      mapsizes[i] = poolLayer.output:size(2)
+      -- print(#convLayer.output)
+      -- print(#poolLayer.output)
+      if opt.cuda then
+         mapsizes[i] = poolLayer.output:size(2)
+      else
+         mapsizes[i] = poolLayer.output:size(3)
+      end
       nhiddens[i] = convLayer.weight:size(2) * convLayer.weight:size(3) * convLayer.weight:size(4)
       nconnections[i] = convLayer.weight:size(1) * nhiddens[i] * (mapsizes[i - 1] - filterSize[i] + 1) ^ 2
 
