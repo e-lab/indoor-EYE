@@ -28,8 +28,8 @@ function get_model1()
 
    local mapsizes = {[0]=opt.width} --sizes of output of layers
    local nconnections = {[0]=0} --number of connections between i-th and (i-1) layer
-   local nhiddens = {[0] = 0} --number of hidden units in layer i
-   local nouts = {[0] = opt.width^2 * opt.ncolors} --number of output units in layer i
+   local nUniqueWeights = {[0] = 0} --number of hidden units in layer i
+   local nHiddenNeurons = {[0] = opt.width^2 * opt.ncolors} --number of output units in layer i
 
    --add first 1..nConvLayers layers (conv+pool+threshold)
    for i = 1, nConvLayers do
@@ -69,13 +69,13 @@ function get_model1()
       else
          mapsizes[i] = poolLayer.output:size(3)
       end
-      nhiddens[i] = convLayer.weight:size(2) * convLayer.weight:size(3) * convLayer.weight:size(4)
-      nconnections[i] = convLayer.weight:size(1) * nhiddens[i] * (mapsizes[i - 1] - filterSize[i] + 1) ^ 2
+      nUniqueWeights[i] = convLayer.weight:size(2) * convLayer.weight:size(3) * convLayer.weight:size(4)
+      nconnections[i] = convLayer.weight:size(1) * nUniqueWeights[i] * (mapsizes[i - 1] - filterSize[i] + 1) ^ 2
 
       if opt.cuda then
-         nouts[i] = poolLayer.output:size(2) * poolLayer.output:size(3) * nFeatureMaps[i]
+         nHiddenNeurons[i] = poolLayer.output:size(2) * poolLayer.output:size(3) * nFeatureMaps[i]
       else
-         nouts[i] = poolLayer.output:size(3) * poolLayer.output:size(4) * nFeatureMaps[i]
+         nHiddenNeurons[i] = poolLayer.output:size(3) * poolLayer.output:size(4) * nFeatureMaps[i]
       end
 
    end
@@ -86,13 +86,13 @@ function get_model1()
    end
 
    --reshape
-   submodel2:add(nn.Reshape(nouts[nConvLayers]))
+   submodel2:add(nn.Reshape(nHiddenNeurons[nConvLayers]))
 
    --add linear layers
    for i = 1, #neuronsPerLinearLayer do
 
-      nouts[nConvLayers + i] = neuronsPerLinearLayer[i]
-      local linear_layer = nn.Linear(nouts[nConvLayers + i - 1], nouts[nConvLayers + i])
+      nHiddenNeurons[nConvLayers + i] = neuronsPerLinearLayer[i]
+      local linear_layer = nn.Linear(nHiddenNeurons[nConvLayers + i - 1], nHiddenNeurons[nConvLayers + i])
       linear_layer.printable = true
       linear_layer.text = 'Linear layer ' .. i
       submodel2:add(linear_layer)
@@ -100,14 +100,14 @@ function get_model1()
 
       --get layer sizes
       mapsizes[nConvLayers + i] = 1
-      nhiddens[nConvLayers + i] = neuronsPerLinearLayer[i]
-      nconnections[nConvLayers + i] = nouts[nConvLayers + i - 1] * nouts[nConvLayers + i]
+      nUniqueWeights[nConvLayers + i] = neuronsPerLinearLayer[i]
+      nconnections[nConvLayers + i] = nHiddenNeurons[nConvLayers + i - 1] * nHiddenNeurons[nConvLayers + i]
       nFeatureMaps[nConvLayers + i] = 1
 
    end
 
    --add classifier
-   submodel2:add(nn.Linear(nouts[nConvLayers + #neuronsPerLinearLayer], #classes))
+   submodel2:add(nn.Linear(nHiddenNeurons[nConvLayers + #neuronsPerLinearLayer], #classes))
    --log probabilities
    submodel2:add(nn.LogSoftMax())
 
@@ -127,8 +127,8 @@ function get_model1()
    for i = 0, nConvLayers + #neuronsPerLinearLayer do
 
       print(string.format(
-      '==> model layer %2d  -  spatial extent: %3dx%3d  |  feature maps: %3d  |  hidden units: %4d  |  output size: %6d  |  connections: %9d',
-      i, mapsizes[i], mapsizes[i], nFeatureMaps[i], nhiddens[i], nouts[i], nconnections[i]
+      '==> model layer %2d  -  spatial extent: %3dx%3d  |  feature maps: %3d  |  hidden neurons: %6d  |  unique weights: %4d  |  connections: %9d',
+      i, mapsizes[i], mapsizes[i], nFeatureMaps[i], nHiddenNeurons[i], nUniqueWeights[i], nconnections[i]
       ))
 
    end
