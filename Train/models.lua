@@ -27,7 +27,7 @@ function get_model1()
    end
 
    local mapsizes = {[0]=opt.width} --sizes of output of layers
-   local nconnections = {[0]=0} --number of connections between i-th and (i-1) layer
+   local nConnections = {[0]=0} --number of connections between i-th and (i-1) layer
    local nUniqueWeights = {[0] = 0} --number of hidden units in layer i
    local nHiddenNeurons = {[0] = opt.width^2 * opt.ncolors} --number of output units in layer i
 
@@ -69,8 +69,8 @@ function get_model1()
       else
          mapsizes[i] = poolLayer.output:size(3)
       end
-      nUniqueWeights[i] = convLayer.weight:size(2) * convLayer.weight:size(3) * convLayer.weight:size(4)
-      nconnections[i] = convLayer.weight:size(1) * nUniqueWeights[i] * (mapsizes[i - 1] - filterSize[i] + 1) ^ 2
+      nUniqueWeights[i] = convLayer.weight:size(1) * convLayer.weight:size(2) * convLayer.weight:size(3) * convLayer.weight:size(4)
+      nConnections[i] = nUniqueWeights[i] * (mapsizes[i - 1] - filterSize[i] + 1) ^ 2
 
       if opt.cuda then
          nHiddenNeurons[i] = poolLayer.output:size(2) * poolLayer.output:size(3) * nFeatureMaps[i]
@@ -101,7 +101,7 @@ function get_model1()
       --get layer sizes
       mapsizes[nConvLayers + i] = 1
       nUniqueWeights[nConvLayers + i] = neuronsPerLinearLayer[i]
-      nconnections[nConvLayers + i] = nHiddenNeurons[nConvLayers + i - 1] * nHiddenNeurons[nConvLayers + i]
+      nConnections[nConvLayers + i] = nHiddenNeurons[nConvLayers + i - 1] * nHiddenNeurons[nConvLayers + i]
       nFeatureMaps[nConvLayers + i] = 1
 
    end
@@ -128,7 +128,7 @@ function get_model1()
 
       print(string.format(
       '==> model layer %2d  -  spatial extent: %3dx%3d  |  feature maps: %3d  |  hidden neurons: %6d  |  unique weights: %4d  |  connections: %9d',
-      i, mapsizes[i], mapsizes[i], nFeatureMaps[i], nHiddenNeurons[i], nUniqueWeights[i], nconnections[i]
+      i, mapsizes[i], mapsizes[i], nFeatureMaps[i], nHiddenNeurons[i], nUniqueWeights[i], nConnections[i]
       ))
 
    end
