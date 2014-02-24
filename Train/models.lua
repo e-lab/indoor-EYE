@@ -70,7 +70,7 @@ function get_model1()
          mapsizes[i] = poolLayer.output:size(3)
       end
       nUniqueWeights[i] = convLayer.weight:size(1) * convLayer.weight:size(2) * convLayer.weight:size(3) * convLayer.weight:size(4)
-      nConnections[i] = nUniqueWeights[i] * (mapsizes[i - 1] - filterSize[i] + 1) ^ 2
+      nConnections[i] = nUniqueWeights[i] * ((mapsizes[i - 1] - filterSize[i] + 1) / convStride[i]) ^ 2
 
       if opt.cuda then
          nHiddenNeurons[i] = poolLayer.output:size(2) * poolLayer.output:size(3) * nFeatureMaps[i]
