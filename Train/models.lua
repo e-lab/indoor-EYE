@@ -9,7 +9,7 @@ function get_model1()
    local nFeatureMaps= {[0]=3, 6, 16, 24, 24, 16} --number of feature maps in conv layers
    local filterSize  = {       9,  5,  3,  3,  3} --filter sizes in conv layers
    local convPadding = {       0,  0,  0,  0,  0}
-   local convStride  = {       2,  1,  1,  1,  1}
+   local convStride  = {       1,  1,  1,  1,  1}
    local poolSize    = {       3,  3,  1,  1,  3}
    local poolStride  = {       2,  2,  1,  1,  2}
 
