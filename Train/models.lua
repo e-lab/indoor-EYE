@@ -124,12 +124,19 @@ function get_model1()
    end
 
    --print sizes of nConvLayers
+   statFile:write('\n==> Network model\n')
    for i = 0, nConvLayers + #neuronsPerLinearLayer do
 
-      print(string.format(
-      '==> model layer %2d  -  spatial extent: %3dx%3d  |  feature maps: %3d  |  hidden neurons: %6d  |  unique weights: %4d  |  connections: %9d',
-      i, mapsizes[i], mapsizes[i], nFeatureMaps[i], nHiddenNeurons[i], nUniqueWeights[i], nConnections[i]
-      ))
+      if i == 0 then filterSize[0] = 0
+      elseif filterSize[i] == nil then filterSize[i] = 1 end
+
+      local s = string.format(
+      '==> model layer %2d  -  filter size: %2d  |  spatial extent: %3dx%3d  |  feature maps: %3d  |  hidden neurons: %6d  |  unique weights: %4d  |  connections: %9d\n',
+      i, filterSize[i], mapsizes[i], mapsizes[i], nFeatureMaps[i], nHiddenNeurons[i], nUniqueWeights[i], nConnections[i]
+      )
+      io.write(s)
+      statFile:write(s)
+      statFile:flush()
 
    end
 
