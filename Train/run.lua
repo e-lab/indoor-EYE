@@ -77,13 +77,13 @@ for a,b in pairs(opt) do
 end
 
 -- Aggiusting options ---------------------------------------------------------
-   opt.width  = opt.side
-   opt.height = opt.side
-   opt.side   = nil
-   if opt.cleanRun then
-      opt.data_sl = 'save'
-      opt.mean_sl = 'save'
-   end
+opt.width  = opt.side
+opt.height = opt.side
+opt.side   = nil
+if opt.cleanRun then
+   opt.data_sl = 'save'
+   opt.mean_sl = 'save'
+end
 
 -- Title ----------------------------------------------------------------------
 if opt.verbose then print(title)
