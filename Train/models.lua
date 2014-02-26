@@ -9,7 +9,7 @@ function get_model1()
    local nFeatureMaps= {[0]=3, 6, 16, 24, 24, 16} --number of feature maps in conv layers
    local filterSize  = {       9,  5,  3,  3,  3} --filter sizes in conv layers
    local convPadding = {       0,  0,  0,  0,  0}
-   local convStride  = {       2,  1,  1,  1,  1}
+   local convStride  = {       1,  1,  1,  1,  1}
    local poolSize    = {       3,  3,  1,  1,  3}
    local poolStride  = {       2,  2,  1,  1,  2}
 
@@ -48,8 +48,8 @@ function get_model1()
 
       else
 
-         -- convLayer = nn.SpatialConvolutionMM(nFeatureMaps[i - 1], nFeatureMaps[i], filterSize[i], filterSize[i])
-         convLayer = nn.SpatialConvolution(nFeatureMaps[i - 1], nFeatureMaps[i], filterSize[i], filterSize[i], convStride[i], convStride[i])
+         convLayer = nn.SpatialConvolutionMM(nFeatureMaps[i - 1], nFeatureMaps[i], filterSize[i], filterSize[i])
+         -- convLayer = nn.SpatialConvolution(nFeatureMaps[i - 1], nFeatureMaps[i], filterSize[i], filterSize[i], convStride[i], convStride[i])
          poolLayer = nn.SpatialMaxPooling(poolSize[i], poolSize[i], poolStride[i], poolStride[i])
 
       end
@@ -70,7 +70,8 @@ function get_model1()
       else
          mapsizes[i] = poolLayer.output:size(3)
       end
-      nUniqueWeights[i] = convLayer.weight:size(1) * convLayer.weight:size(2) * convLayer.weight:size(3) * convLayer.weight:size(4)
+      nUniqueWeights[i] = 0
+      --nUniqueWeights[i] = convLayer.weight:size(1) * convLayer.weight:size(2) * convLayer.weight:size(3) * convLayer.weight:size(4)
       nConnections[i] = nUniqueWeights[i] * ((mapsizes[i - 1] - filterSize[i] + 1) / convStride[i]) ^ 2
 
       if opt.cuda then
