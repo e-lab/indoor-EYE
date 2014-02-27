@@ -99,6 +99,7 @@ function get_model1()
       linear_layer.text = 'Linear layer ' .. i
       submodel2:add(linear_layer)
       submodel2:add(nn.Threshold(0, 0))
+      submodel2:add(nn.Dropout(.5))
 
       --get layer sizes
       mapsizes[nConvLayers + i] = 1

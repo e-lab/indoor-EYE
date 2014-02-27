@@ -7,7 +7,7 @@
 
 -- Require packages -----------------------------------------------------------
 require 'torch'
-require 'nn'
+require 'nnx'
 require 'torchffi'
 require 'pl'
 require 'usefulFunctions'
