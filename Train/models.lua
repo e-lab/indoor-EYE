@@ -90,6 +90,13 @@ function get_model1()
    --reshape
    submodel2:add(nn.Reshape(nHiddenNeurons[nConvLayers]))
 
+   -- If dropout is not 0
+   local dropout = {}
+   if opt.dropout > 0 then
+      dropout[1] = nn.Dropout(opt.dropout)
+      submodel2:add(dropout[1])
+   end
+
    --add linear layers
    for i = 1, #neuronsPerLinearLayer do
 
@@ -99,6 +106,11 @@ function get_model1()
       linear_layer.text = 'Linear layer ' .. i
       submodel2:add(linear_layer)
       submodel2:add(nn.Threshold(0, 0))
+      -- If dropout is not 0
+      if opt.dropout > 0 then
+         dropout[i+1] = nn.Dropout(opt.dropout)
+         submodel2:add(dropout[i+1])
+      end
 
       --get layer sizes
       mapsizes[nConvLayers + i] = 1
@@ -143,6 +155,6 @@ function get_model1()
    end
 
    --print(model.modules)
-   return model, loss
+   return model, loss, dropout
 
 end
