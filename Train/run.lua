@@ -170,10 +170,10 @@ function run(trainData, testData)
    verify_statistics(testData.data, {'r','g','b'}, 'test images', opt.verify_statistics)
 
    --get classifier and loss function
-   local model, loss = get_model1() --(classifier.lua)
+   local model, loss, dropout = get_model1() --(classifier.lua)
 
    --train classifier
-   local train_acc, test_acc = train_and_test(trainData, testData, model, loss, opt.plot, opt.verbose) --(train-and-test.lua)
+   local train_acc, test_acc = train_and_test(trainData, testData, model, loss, opt.plot, opt.verbose, dropout) --(train-and-test.lua)
    -------------------------------------------------------------------------------
 
    --return train and test accuracy

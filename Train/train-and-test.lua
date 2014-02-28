@@ -148,7 +148,7 @@ function print_confusion_matrix(self, init_str)
 
 end
 
-function train_and_test(trainData, testData, model, loss, plot, verbose)
+function train_and_test(trainData, testData, model, loss, plot, verbose, dropout)
 
    if verbose then
       print '==> training neuralnet'
@@ -205,7 +205,7 @@ function train_and_test(trainData, testData, model, loss, plot, verbose)
 
       ce_train_error = 0
       if verbose then print('==> Train ' .. i) end
-      train(trainData, model, loss)
+      train(trainData, model, loss, dropout)
 
       time = sys.clock() - time
       trainTestTime.train.perSample[i] = time / trainData.data:size(1)
@@ -257,7 +257,7 @@ function train_and_test(trainData, testData, model, loss, plot, verbose)
       local time = sys.clock()
       ce_test_error = 0
       if verbose then print('==> Test ' .. i) end
-      test(testData, model, loss)
+      test(testData, model, loss, dropout)
       time = sys.clock() - time
       trainTestTime.test.perSample[i] = time / testData.data:size(1)
       trainTestTime.test.total    [i] = time
