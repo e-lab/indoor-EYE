@@ -34,8 +34,6 @@ function get_model1()
    --add first 1..nConvLayers layers (conv+pool+threshold)
    for i = 1, nConvLayers do
 
-      local convLayer = {}
-      local poolLayer = {}
       local test_batch = torch.Tensor(64, nFeatureMaps[i - 1], mapsizes[i - 1], mapsizes[i - 1])
 
       if opt.cuda then
@@ -56,7 +54,9 @@ function get_model1()
       convLayer.printable = true
       convLayer.text = 'Conv layer ' .. i
       submodel1:add(convLayer)
-      submodel1:add(poolLayer)
+      if poolSize[i] > 1 then
+         submodel1:add(poolLayer)
+      end
       submodel1:add(nn.Threshold(0,0))
 
       --get layer sizes
