@@ -55,10 +55,10 @@ function get_model1()
       convLayer.printable = true
       convLayer.text = 'Conv layer ' .. i
       submodel1:add(convLayer)
+      submodel1:add(nn.Threshold(0,0))
       if poolSize[i] > 1 then
          submodel1:add(poolLayer)
       end
-      submodel1:add(nn.Threshold(0,0))
 
       --get layer sizes
       local r1 = convLayer:forward(test_batch)
