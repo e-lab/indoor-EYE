@@ -34,6 +34,7 @@ Dataset's parameters
    --distort                 TODO
    --mmload                  Memory mapping when loading data. Use with small RAM
    --parts                   Use image parts instead of whole images
+   --dropout (default 0)     Dropout in MLP. Set it to 0 for disabling it, 0.5 for "standard" working value
 
 Learning parameters
    --learningRate      (default 5e-2)

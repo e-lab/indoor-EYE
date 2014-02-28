@@ -7,7 +7,7 @@
 require 'torch'   -- torch
 require 'optim'   -- an optimization package, for online and batch methods
 
-function train(data, model, loss)
+function train(data, model, loss, dropout)
    --train one iteration
 
    data.prepareBatch(1)
@@ -38,10 +38,6 @@ function train(data, model, loss)
          local dE_dy = loss:backward(y, targets)
          model:backward(ims, dE_dy)
 
-         for i = 1, opt.batchSize do
-            train_confusion:add(y[i], targets[i])
-         end
-
          return E, dE_dw
 
       end
@@ -49,13 +45,34 @@ function train(data, model, loss)
       -- optimize on current mini-batch
       optim.sgd(eval_E, w, optimState)
 
+      -- Switching off the dropout
+      for _,d in ipairs(dropout) do
+         d.train = false
+      end
+
+      -- Update confusion matrix
+      local y = model:forward(ims)
+      for i = 1, opt.batchSize do
+         train_confusion:add(y[i], targets[i])
+      end
+
+      -- Switching back on the dropout
+      for _,d in ipairs(dropout) do
+         d.train = true
+      end
+
    end
 
    ce_train_error = ce_train_error / (data.nbatches() * opt.batchSize)
 
 end
 
-function test(data, model, loss)
+function test(data, model, loss, dropout)
+
+   -- Switching off the dropout
+   for _,d in ipairs(dropout) do
+      d.train = false
+   end
 
    for t = 1, data.nbatches() do
 
@@ -76,6 +93,11 @@ function test(data, model, loss)
       end
 
    end
+
+      -- Switching back on the dropout
+      for _,d in ipairs(dropout) do
+         d.train = true
+      end
 
    ce_test_error = ce_test_error / (data.nbatches() * opt.batchSize)
 
