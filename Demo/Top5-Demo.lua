@@ -33,7 +33,7 @@ opt = lapp(title .. [[
 --model          (default '06C/model-90.net'   ) Model's name
 --histogram                                      Shows prediction's histogram
 --imageSide      (default 128                  ) Image's side length
---sleep          (default 0.5                  ) Sleeping interval between camera's frames
+--fps            (default 2                    ) Frames per second (camera setting)
 ]])
 io.write(title)
 torch.setdefaulttensortype('torch.FloatTensor')
@@ -128,6 +128,6 @@ while true do
    if not opt.camera then
       io.read()
    else
-      sys.sleep(opt.sleep)
+      sys.sleep(1/opt.fps)
    end
 end
