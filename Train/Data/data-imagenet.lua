@@ -405,7 +405,7 @@ function load_data(data_file, info_file, sfile, fact)
          local x1 = math.floor(opt.jitter / 2) + 1
          local y1 = math.floor(opt.jitter / 2) + 1
 
-         if (opt.jitter > 0) and (istest == 0) then
+         if (opt.jitter > 0) and (not istest) then
 
             --select random shifted subimage
             x1 = math.floor(torch.uniform(opt.jitter + 1))

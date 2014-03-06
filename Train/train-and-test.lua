@@ -10,7 +10,7 @@ require 'optim'   -- an optimization package, for online and batch methods
 function train(data, model, loss, dropout)
    --train one iteration
 
-   data.prepareBatch(1, 0) --get first train data batch
+   data.prepareBatch(1, false) --get first train data batch
 
    for t = 1, data.nbatches() do
 
@@ -22,7 +22,7 @@ function train(data, model, loss, dropout)
 
       --prepare next batch
       if t < data.nbatches() then
-         data.prepareBatch(t + 1, 0) --get next train data batch
+         data.prepareBatch(t + 1, false) --get next train data batch
       end
       --      print('load data: ' .. sys.clock() - t0)
 
@@ -83,7 +83,7 @@ function test(data, model, loss, dropout)
    for t = 1, data.nbatches() do
 
       xlua.progress(t, data.nbatches())
-      data.prepareBatch(t, 1) --get next test batch
+      data.prepareBatch(t, true) --get next test batch
       ims, targets = data.copyBatch()
 
       -- test sample
