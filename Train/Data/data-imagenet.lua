@@ -384,7 +384,7 @@ function load_data(data_file, info_file, sfile, fact)
       end
 
    end
--------------------------------------------------------------------------------
+   -------------------------------------------------------------------------------
 
    local n = data.labels:size(1)
    local shuffle = torch.randperm(n):type('torch.LongTensor')
@@ -402,14 +402,15 @@ function load_data(data_file, info_file, sfile, fact)
       for i = 1, bs do
 
          local j = shuffle[(idx - 1) * bs + i]
-         local x1 = 1
-         local y1 = 1
+         local x1 = math.floor(opt.jitter / 2) + 1
+         local y1 = math.floor(opt.jitter / 2) + 1
 
-         if opt.jitter > 0 then
+         if (opt.jitter > 0) and (istest == 0) then
+
             --select random shifted subimage
             x1 = math.floor(torch.uniform(opt.jitter + 1))
             y1 = math.floor(torch.uniform(opt.jitter + 1))
-
+               
          end
 
          if opt.parts then
