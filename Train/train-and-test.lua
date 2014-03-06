@@ -46,8 +46,10 @@ function train(data, model, loss, dropout)
       optim.sgd(eval_E, w, optimState)
 
       -- Switching off the dropout
-      for _,d in ipairs(dropout) do
-         d.train = false
+      if opt.dropout > 0 or opt.inputDO > 0 then
+         for _,d in ipairs(dropout) do
+            d.train = false
+         end
       end
 
       -- Update confusion matrix
@@ -57,8 +59,10 @@ function train(data, model, loss, dropout)
       end
 
       -- Switching back on the dropout
-      for _,d in ipairs(dropout) do
-         d.train = true
+      if opt.dropout > 0 or opt.inputDO > 0 then
+         for _,d in ipairs(dropout) do
+            d.train = true
+         end
       end
 
    end
@@ -70,8 +74,10 @@ end
 function test(data, model, loss, dropout)
 
    -- Switching off the dropout
-   for _,d in ipairs(dropout) do
-      d.train = false
+   if opt.dropout > 0 or opt.inputDO > 0 then
+      for _,d in ipairs(dropout) do
+         d.train = false
+      end
    end
 
    for t = 1, data.nbatches() do
@@ -94,10 +100,12 @@ function test(data, model, loss, dropout)
 
    end
 
-      -- Switching back on the dropout
+   -- Switching back on the dropout
+   if opt.dropout > 0 or opt.inputDO > 0 then
       for _,d in ipairs(dropout) do
          d.train = true
       end
+   end
 
    ce_test_error = ce_test_error / (data.nbatches() * opt.batchSize)
 

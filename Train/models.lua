@@ -21,6 +21,15 @@ function get_model1()
    local submodel1 = nn.Sequential() --conv+pool+threshold layers
    local submodel2 = nn.Sequential() --linear layers
 
+   -- Dropout in the input space
+   local dropout = {}
+   local DOidx = 1
+   if opt.inputDO > 0 then
+      dropout[DOidx] = nn.Dropout(opt.inputDO)
+      submodel1:add(dropout[DOidx])
+      DOidx = DOidx + 1
+   end
+
    --transpose batch if cuda
    if opt.cuda then
       submodel1:add(nn.Transpose({1,4},{1,3},{1,2}))
@@ -91,10 +100,10 @@ function get_model1()
    submodel2:add(nn.Reshape(nHiddenNeurons[nConvLayers]))
 
    -- If dropout is not 0
-   local dropout = {}
    if opt.dropout > 0 then
-      dropout[1] = nn.Dropout(opt.dropout)
-      submodel2:add(dropout[1])
+      dropout[DOidx] = nn.Dropout(opt.dropout)
+      submodel2:add(dropout[DOidx])
+      DOidx = DOidx + 1
    end
 
    --add linear layers
@@ -108,8 +117,8 @@ function get_model1()
       submodel2:add(nn.Threshold(0, 0))
       -- If dropout is not 0
       if opt.dropout > 0 then
-         dropout[i+1] = nn.Dropout(opt.dropout)
-         submodel2:add(dropout[i+1])
+         dropout[i+DOidx] = nn.Dropout(opt.dropout)
+         submodel2:add(dropout[i+DOidx])
       end
 
       --get layer sizes
