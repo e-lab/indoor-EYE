@@ -6,12 +6,12 @@ function get_model1()
 
    --options for (conv+pool+threshold) layers
    local nConvLayers = 5 --number of (conv+pool+threshold) layers
-   local nFeatureMaps= {[0]=3, 6, 16, 24, 24, 16} --number of feature maps in conv layers
-   local filterSize  = {       9,  5,  3,  3,  3} --filter sizes in conv layers
-   local convPadding = {       0,  0,  0,  0,  0}
-   local convStride  = {       1,  1,  1,  1,  1}
-   local poolSize    = {       3,  3,  1,  1,  3}
-   local poolStride  = {       2,  2,  1,  1,  2}
+   local nFeatureMaps= {[0]=3, 32, 64, 96, 96, 64} --number of feature maps in conv layers
+   local filterSize  = {        9,  5,  3,  3,  3} --filter sizes in conv layers
+   local convPadding = {        0,  0,  0,  0,  0}
+   local convStride  = {        1,  1,  1,  1,  1}
+   local poolSize    = {        3,  3,  1,  1,  3}
+   local poolStride  = {        2,  2,  1,  1,  2}
 
    --options for linear layers
    local neuronsPerLinearLayer = {256, 256} --number of neurons in linear layer
@@ -79,8 +79,8 @@ function get_model1()
       else
          mapsizes[i] = poolLayer.output:size(3)
       end
-      nUniqueWeights[i] = 0
-      --nUniqueWeights[i] = convLayer.weight:size(1) * convLayer.weight:size(2) * convLayer.weight:size(3) * convLayer.weight:size(4)
+      --nUniqueWeights[i] = 0
+      nUniqueWeights[i] = convLayer.weight:size(1) * convLayer.weight:size(2) * convLayer.weight:size(3) * convLayer.weight:size(4)
       nConnections[i] = nUniqueWeights[i] * ((mapsizes[i - 1] - filterSize[i] + 1) / convStride[i]) ^ 2
 
       if opt.cuda then
@@ -154,7 +154,7 @@ function get_model1()
       elseif filterSize[i] == nil then filterSize[i] = 1 end
 
       local s = string.format(
-      '==> model layer %2d  -  filter size: %2d  |  spatial extent: %3dx%3d  |  feature maps: %3d  |  hidden neurons: %6d  |  unique weights: %4d  |  connections: %9d\n',
+      '==> model layer %2d  -  filter size: %2d  |  spatial extent: %3dx%3d  |  feature maps: %3d  |  hidden neurons: %6d  |  unique weights: %5d  |  connections: %9d\n',
       i, filterSize[i], mapsizes[i], mapsizes[i], nFeatureMaps[i], nHiddenNeurons[i], nUniqueWeights[i], nConnections[i]
       )
       io.write(s)
