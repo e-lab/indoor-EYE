@@ -64,6 +64,7 @@ function get_model1()
       convLayer.printable = true
       convLayer.text = 'Conv layer ' .. i
       submodel1:add(convLayer)
+      submodel1:add(nn.Probe('Probing ' .. convLayer.text))
       submodel1:add(nn.Threshold(0,0))
       if poolSize[i] > 1 then
          submodel1:add(poolLayer)
