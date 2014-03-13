@@ -82,8 +82,10 @@ function get_model1()
       else
          mapsizes[i] = poolLayer.output:size(3)
       end
-      --nUniqueWeights[i] = 0
-      nUniqueWeights[i] = convLayer.weight:size(1) * convLayer.weight:size(2) * convLayer.weight:size(3) * convLayer.weight:size(4)
+      nUniqueWeights[i] = convLayer.weight:size(1) * convLayer.weight:size(2)
+      if opt.cuda then
+         nUniqueWeights[i] = nUniqueWeights[i] * convLayer.weight:size(3) * convLayer.weight:size(4)
+      end
       nConnections[i] = nUniqueWeights[i] * ((mapsizes[i - 1] - filterSize[i] + 1) / convStride[i]) ^ 2
 
       if opt.cuda then
