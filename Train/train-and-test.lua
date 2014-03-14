@@ -215,10 +215,11 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
       if verbose then print('==> Train ' .. i) end
 
       --shuffle train data
-      --trainData.newShuffle()
-
+      trainData.newShuffle()
+      
+      --train one iteration
       train(trainData, model, loss, dropout)
-
+      
       time = sys.clock() - time
       trainTestTime.train.perSample[i] = time / trainData.data:size(1)
       trainTestTime.train.total    [i] = time
@@ -238,7 +239,18 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
                   if m.printable then
 
                      local ws = m.weight:clone() --weights
-                     ws = ws:float():abs()
+                     ws = ws:float()
+
+                     --compute max L2 norw of neuron weights
+                     local maxL2 = 0
+                     for i2 = 1, ws:size(1) do
+                        local neuronL2 = ws[i2]:norm()
+                        if neuronL2 > maxL2 then
+                           maxL2 = neuronL2
+                        end
+                     end
+
+                     ws = ws:abs()
                      local ws_small = ws:lt(1e-5):sum()
                      local ws_big = ws:gt(1e+2):sum()
 
@@ -247,6 +259,8 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
                      local gws_small = gws:lt(1e-5):sum()
                      local gws_big = gws:gt(1e+2):sum()
 
+
+                     print(m.text .. string.format(': max L2 neuron norm: %f', maxL2))
                      print(m.text .. string.format(': number of small weights: %d, big weights: %d', ws_small, ws_big))
                      print(m.text .. string.format(': number of small gradweights: %d, big gradweights: %d', gws_small, gws_big))
 
