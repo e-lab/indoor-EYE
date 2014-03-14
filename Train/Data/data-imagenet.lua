@@ -387,9 +387,9 @@ function load_data(data_file, info_file, sfile, fact)
    -------------------------------------------------------------------------------
 
    local n = data.labels:size(1)
-   local shuffle = torch.randperm(n):type('torch.LongTensor')
+   data.shuffle = torch.randperm(n):type('torch.LongTensor')
+
    data.keep = {
-      shuffle = shuffle,
       samples = samples,
       targets = targets
    }
@@ -401,7 +401,7 @@ function load_data(data_file, info_file, sfile, fact)
 
       for i = 1, bs do
 
-         local j = shuffle[(idx - 1) * bs + i]
+         local j = data.shuffle[(idx - 1) * bs + i]
          local x1 = math.floor(opt.jitter / 2) + 1
          local y1 = math.floor(opt.jitter / 2) + 1
 
@@ -447,10 +447,19 @@ function load_data(data_file, info_file, sfile, fact)
       return math.floor(data.data:size(1) / opt.batchSize)
    end
 
+   local function newShuffle()
+   --shuffle indexes
+
+      local n = nbatches() * opt.batchSize
+      data.shuffle = torch.randperm(n):type('torch.LongTensor')
+      
+   end
+
    -- augment dataset:
    data.copyBatch = copyBatch
    data.prepareBatch = prepareBatch
    data.nbatches = nbatches
+   data.newShuffle = newShuffle
 
    return data
 

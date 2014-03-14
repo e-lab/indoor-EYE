@@ -213,6 +213,10 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
 
       ce_train_error = 0
       if verbose then print('==> Train ' .. i) end
+
+      --shuffle train data
+      --trainData.newShuffle()
+
       train(trainData, model, loss, dropout)
 
       time = sys.clock() - time
