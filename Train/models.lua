@@ -6,7 +6,7 @@ function get_model1()
 
    --options for (conv+pool+threshold) layers
    local nConvLayers = 5 --number of (conv+pool+threshold) layers
-   local nFeatureMaps= {[0]=3, 32, 64, 96, 96, 64} --number of feature maps in conv layers
+   local nFeatureMaps= {[0]=3, 16, 16, 16, 16, 16} --number of feature maps in conv layers
    local filterSize  = {        9,  5,  3,  3,  3} --filter sizes in conv layers
    local convPadding = {        0,  0,  0,  0,  0}
    local convStride  = {        1,  1,  1,  1,  1}
