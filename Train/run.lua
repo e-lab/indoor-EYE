@@ -71,6 +71,7 @@ Other parameters
    --save              (default true)
    --seed              (default 123 )
    --num_threads       (default 3   )
+   --probe                            Switch to DEBUG mode
 ]])
 
 --allow write default false
