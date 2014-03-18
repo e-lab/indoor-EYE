@@ -136,7 +136,11 @@ function get_model1()
    end
 
    --add classifier
-   submodel2:add(nn.Linear(nHiddenNeurons[nConvLayers + #neuronsPerLinearLayer], #classes))
+   local outputLayer = nn.Linear(nHiddenNeurons[nConvLayers + #neuronsPerLinearLayer], #classes)
+   outputLayer.printable = true
+   outputLayer.text = 'Output layer'
+   submodel2:add(outputLayer)
+
    if opt.probe then
       submodel1:add(nn.Probe('Probing output layer'))
    end
