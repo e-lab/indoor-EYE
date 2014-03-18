@@ -183,9 +183,9 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
    local ivwi = trainData.data:size(4)
 
    --init logger for train and test accuracy
-   local logger = optim.Logger(opt.save_dir .. 'logger.log')
+   local logger = optim.Logger(opt.save_dir .. 'accuracy.log')
    --init logger for train and test cross-entropy error
-   local ce_logger = optim.Logger(opt.save_dir .. 'celogger.log')
+   local ce_logger = optim.Logger(opt.save_dir .. 'cross-entropy.log')
    --init train and test time
    local trainTestTime = {}
    trainTestTime.train = {}
@@ -193,6 +193,19 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
    for _,t in pairs(trainTestTime) do
       t.perSample = torch.Tensor(opt.niters)
       t.total     = torch.zeros(opt.niters)
+   end
+
+   -- Initialising debugging loggers
+   local logMin, logMax, logAvg, logStd
+   if opt.debug then
+      logWsMin  = optim.Logger(opt.save_dir .. 'logWsMin.log' )
+      logWsMax  = optim.Logger(opt.save_dir .. 'logWsMax.log' )
+      logWsAvg  = optim.Logger(opt.save_dir .. 'logWsAvg.log' )
+      logWsStd  = optim.Logger(opt.save_dir .. 'logWsStd.log' )
+      logGwsMin = optim.Logger(opt.save_dir .. 'logGwsMin.log')
+      logGwsMax = optim.Logger(opt.save_dir .. 'logGwsMax.log')
+      logGwsAvg = optim.Logger(opt.save_dir .. 'logGwsAvg.log')
+      logGwsStd = optim.Logger(opt.save_dir .. 'logGwsStd.log')
    end
 
    --allocate memory for batch of images
@@ -229,27 +242,79 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
          --print weights and gradweights statistics
          if opt.print_weight_stat then
 
+            local wsMin,  wsMax,  wsAvg,  wsStd  = {},{},{},{}
+            local gwsMin, gwsMax, gwsAvg, gwsStd = {},{},{},{}
+            local style = {}
+
             for _,seq in ipairs(model.modules) do
                for _,m in ipairs(seq.modules) do
                   if m.printable then
 
-                     local ws = m.weight:clone() --weights
+                     -- Computing <weight> statistics
+                     local ws = m.weight:clone()
+                     wsMin[m.text] = ws:min()
+                     wsMax[m.text] = ws:max()
+                     wsAvg[m.text] = ws:mean()
+                     wsStd[m.text] = ws:std()
                      ws = ws:float():abs()
                      local ws_small = ws:lt(1e-5):sum()
                      local ws_big = ws:gt(1e+2):sum()
 
-                     local gws = m.gradWeight:clone() --gradweights
+                     -- Computing <gradients> statistics
+                     local gws = m.gradWeight:clone()
+                     gwsMin[m.text] = gws:min()
+                     gwsMax[m.text] = gws:max()
+                     gwsAvg[m.text] = gws:mean()
+                     gwsStd[m.text] = gws:std()
                      gws = gws:float():abs()
                      local gws_small = gws:lt(1e-5):sum()
                      local gws_big = gws:gt(1e+2):sum()
 
-                     print(m.text .. string.format(': number of small weights: %d, big weights: %d', ws_small, ws_big))
-                     print(m.text .. string.format(': number of small gradweights: %d, big gradweights: %d', gws_small, gws_big))
+                     -- Setting plotting style
+                     style[m.text] = '-'
+
+                     print(m.text)
+                     print(string.format('#small weights: %d, big weights: %d', ws_small, ws_big))
+                     print(string.format('#small grads  : %d, big grads  : %d', gws_small, gws_big))
 
                   end
                end
             end
 
+            -- Logging stats
+            if opt.debug then
+               logWsMin :add(wsMin )
+               logWsMax :add(wsMax )
+               logWsAvg :add(wsAvg )
+               logWsStd :add(wsStd )
+               logGwsMin:add(gwsMin)
+               logGwsMax:add(gwsMax)
+               logGwsAvg:add(gwsAvg)
+               logGwsStd:add(gwsStd)
+            end
+
+            -- Plotting
+            if plot and opt.debug then
+               -- Setting the style
+               logWsMin :style(style)
+               logWsMax :style(style)
+               logWsAvg :style(style)
+               logWsStd :style(style)
+               logGwsMin:style(style)
+               logGwsMax:style(style)
+               logGwsAvg:style(style)
+               logGwsStd:style(style)
+
+               -- Plotting
+               logWsMin :plot()
+               logWsMax :plot()
+               logWsAvg :plot()
+               logWsStd :plot()
+               logGwsMin:plot()
+               logGwsMax:plot()
+               logGwsAvg:plot()
+               logGwsStd:plot()
+            end
 
          end
 
