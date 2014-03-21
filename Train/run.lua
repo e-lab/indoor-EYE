@@ -73,6 +73,7 @@ Other parameters
    --num_threads       (default 3   )
    --probe                            Prints to screen feature maps stats after every training iteration
    --debug                            Logs weights and gradients stats every epoch
+   --network           (default N/A ) Load specified net from file. Default is "Not Available" -> new net is generated
 ]])
 
 --allow write default false
@@ -173,7 +174,12 @@ function run(trainData, testData)
    verify_statistics(testData.data, {'r','g','b'}, 'test images', opt.verify_statistics)
 
    --get classifier and loss function
-   local model, loss, dropout = get_model1() --(classifier.lua)
+   local model, loss, dropout
+   if opt.network == 'N/A' then
+      model, loss, dropout = get_model1() --(classifier.lua)
+   else
+      model, loss = get_model2(opt.network)
+   end
 
    --train classifier
    local train_acc, test_acc = train_and_test(trainData, testData, model, loss, opt.plot, opt.verbose, dropout) --(train-and-test.lua)

@@ -182,3 +182,39 @@ function get_model1()
    return model, loss, dropout
 
 end
+
+
+function get_model2(networkFile)
+
+   -- Load model from file
+   local model = torch.load(networkFile)
+
+   -- Repopulate the gradWeight through the whole net
+   function craftWeight(module)
+      if module.weight then module.gradWeight = module.weight:clone() end
+      if module.bias   then module.gradBias   = module.bias  :clone() end
+      module.gradInput  = torch.Tensor()
+   end
+
+   function repopulateGrad(network)
+      craftWeight(network)
+      if network.modules then
+         for _,a in ipairs(network.modules) do
+            repopulateGrad(a)
+         end
+      end
+   end
+
+   repopulateGrad(model)
+
+   -- Loss: NLL
+   local loss = nn.ClassNLLCriterion()
+
+   if opt.cuda then
+      model:cuda()
+      loss:cuda()
+   end
+
+   return model, loss
+
+end
