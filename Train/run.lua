@@ -71,6 +71,8 @@ Other parameters
    --save              (default true)
    --seed              (default 123 )
    --num_threads       (default 3   )
+   --probe                            Prints to screen feature maps stats after every training iteration
+   --debug                            Logs weights and gradients stats every epoch
 ]])
 
 --allow write default false

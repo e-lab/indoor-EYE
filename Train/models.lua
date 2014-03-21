@@ -64,6 +64,9 @@ function get_model1()
       convLayer.printable = true
       convLayer.text = 'Conv layer ' .. i
       submodel1:add(convLayer)
+      if opt.probe then
+         submodel1:add(nn.Probe('Probing ' .. convLayer.text))
+      end
       submodel1:add(nn.Threshold(0,0))
       if poolSize[i] > 1 then
          submodel1:add(poolLayer)
@@ -116,6 +119,9 @@ function get_model1()
       linear_layer.printable = true
       linear_layer.text = 'Linear layer ' .. i
       submodel2:add(linear_layer)
+      if opt.probe then
+         submodel1:add(nn.Probe('Probing ' .. linear_layer.text))
+      end
       submodel2:add(nn.Threshold(0, 0))
       -- If dropout is not 0
       if opt.dropout > 0 then
@@ -132,7 +138,14 @@ function get_model1()
    end
 
    --add classifier
-   submodel2:add(nn.Linear(nHiddenNeurons[nConvLayers + #neuronsPerLinearLayer], #classes))
+   local outputLayer = nn.Linear(nHiddenNeurons[nConvLayers + #neuronsPerLinearLayer], #classes)
+   outputLayer.printable = true
+   outputLayer.text = 'Output layer'
+   submodel2:add(outputLayer)
+
+   if opt.probe then
+      submodel1:add(nn.Probe('Probing output layer'))
+   end
    --log probabilities
    submodel2:add(nn.LogSoftMax())
 
