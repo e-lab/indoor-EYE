@@ -260,6 +260,10 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
                      -- Computing <weight> statistics
                      local ws = m.weight:float()
                      if opt.debug then
+                        -- Detecting and removing NaNs
+                        if ws:ne(ws):sum() > 0 then print(sys.COLORS.red .. m.text .. ' weights has NaN/s') end
+                        ws[ws:ne(ws)] = 0
+
                         wsMin[m.text] = ws:min()
                         wsMax[m.text] = ws:max()
                         wsAvg[m.text] = ws:mean()
@@ -282,11 +286,16 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
                      -- Computing <gradients> statistics
                      local gws = m.gradWeight:float()
                      if opt.debug then
+                        -- Detecting and removing NaNs
+                        if gws:ne(gws):sum() > 0 then print(sys.COLORS.red .. m.text .. ' gradients has NaN/s') end
+                        gws[gws:ne(gws)] = 0
+
                         gwsMin[m.text] = gws:min()
                         gwsMax[m.text] = gws:max()
                         gwsAvg[m.text] = gws:mean()
                         gwsStd[m.text] = gws:std()
                      end
+
                      gws = gws:abs()
                      local gws_small = gws:lt(1e-5):sum()
                      local gws_big = gws:gt(1e+2):sum()
