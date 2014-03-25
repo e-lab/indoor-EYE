@@ -763,9 +763,9 @@ end
 
 function nilling(module)
    module.gradBias   = nil
-   if module.finput then module.finput = torch.Tensor() end
+   if module.finput then module.finput = torch.Tensor():typeAs(module.finput) end
    module.gradWeight = nil
-   module.output     = torch.Tensor()
+   module.output     = torch.Tensor():typeAs(module.output)
    module.fgradInput = nil
    module.gradInput  = nil
 end

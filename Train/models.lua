@@ -194,6 +194,7 @@ function get_model2(networkFile)
       if module.weight then module.gradWeight = module.weight:clone() end
       if module.bias   then module.gradBias   = module.bias  :clone() end
       module.gradInput  = torch.Tensor()
+      if opt.cuda then module.gradInput:cuda() end
    end
 
    function repopulateGrad(network)
