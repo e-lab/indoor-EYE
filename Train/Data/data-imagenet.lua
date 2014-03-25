@@ -784,10 +784,10 @@ function saveNet(model, filename, verbose)
    if verbose then
       print('==> saving model to '..filename)
    end
-   modelToSave = model:clone()
-   modelToSave:float()
+   --modelToSave = model:clone() -- there is no enough memory on GPU
+   --modelToSave:float() -- I don't want conversions!
 
-   netLighter(modelToSave)
---   print(modelToSave.modules)
-   torch.save(filename, modelToSave)
+   netLighter(model)
+   torch.save(filename, model)
+   repopulateGrad(model)
 end
