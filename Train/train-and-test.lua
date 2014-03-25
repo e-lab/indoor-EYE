@@ -220,6 +220,8 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
 
    for i = 1, opt.niters do
 
+      prevModel = model:clone()
+      hasNaN = false
       -------------------------------------------------------------------------------
       --train
       local time = sys.clock()
@@ -254,7 +256,10 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
                      local ws = m.weight:float()
 
                      -- Detecting and removing NaNs
-                     if ws:ne(ws):sum() > 0 then print(sys.COLORS.red .. m.text .. ' weights has NaN/s') end
+                     if ws:ne(ws):sum() > 0 then
+                        print(sys.COLORS.red .. m.text .. ' weights has NaN/s')
+                        hasNaN = true
+                     end
                      ws[ws:ne(ws)] = 0
 
                      wsMin[m.text] = ws:min()
@@ -269,7 +274,10 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
                      local gws = m.gradWeight:float()
 
                      -- Detecting and removing NaNs
-                     if gws:ne(gws):sum() > 0 then print(sys.COLORS.red .. m.text .. ' gradients has NaN/s') end
+                     if gws:ne(gws):sum() > 0 then
+                        print(sys.COLORS.red .. m.text .. ' gradients has NaN/s')
+                        hasNaN = true
+                     end
                      gws[gws:ne(gws)] = 0
 
                      gwsMin[m.text] = gws:min()
@@ -326,6 +334,15 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
                logGwsStd:plot()
             end
 
+         end
+
+         if hasNaN then
+            print()
+            print(sys.COLORS.red .. '>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<')
+            print(sys.COLORS.red .. '>>> NaN detected! Retraining same epoch! <<<')
+            print(sys.COLORS.red .. '>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<')
+            model = prevModel
+            hasNaN = false
          end
 
          print('\n')
