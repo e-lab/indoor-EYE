@@ -790,4 +790,5 @@ function saveNet(model, filename, verbose)
    netLighter(model)
    torch.save(filename, model)
    repopulateGrad(model)
+   w, dE_dw = model:getParameters()
 end
