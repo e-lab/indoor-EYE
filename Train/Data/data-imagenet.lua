@@ -760,35 +760,3 @@ function csv2table(csv_file, out_file)
    print('==> Saved ' .. out_file)
 
 end
-
-function nilling(module)
-   module.gradBias   = nil
-   if module.finput then module.finput = torch.Tensor():typeAs(module.finput) end
-   module.gradWeight = nil
-   module.output     = torch.Tensor():typeAs(module.output)
-   module.fgradInput = nil
-   module.gradInput  = nil
-end
-
-function netLighter(network)
-   nilling(network)
-   if network.modules then
-      for _,a in ipairs(network.modules) do
-         netLighter(a)
-      end
-   end
-end
-
-function saveNet(model, filename, verbose)
-   --   local filename = paths.concat(opt. name)
-   if verbose then
-      print('==> saving model to '..filename)
-   end
-   --modelToSave = model:clone() -- there is no enough memory on GPU
-   --modelToSave:float() -- I don't want conversions!
-
-   netLighter(model)
-   torch.save(filename, model)
-   repopulateGrad(model)
-   w, dE_dw = model:getParameters()
-end
