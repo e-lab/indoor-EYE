@@ -7,7 +7,8 @@
 
 -- Require packages -----------------------------------------------------------
 require 'torch'
-require 'nn'
+require 'nnx'
+require 'net-toolkit'
 require 'torchffi'
 require 'pl'
 require 'usefulFunctions'
