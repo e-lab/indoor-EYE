@@ -222,6 +222,7 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
 
       prevModel = model:clone()
       hasNaN = false
+      prevTrainAcc = train_confusion.totalValid
       -------------------------------------------------------------------------------
       --train
       local time = sys.clock()
@@ -365,6 +366,15 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
             hasNaN = false
          end
 
+         if train_confusion.totalValid < .5 * prevTrainAcc then
+            print()
+            print(sys.COLORS.red .. '>>>>>>>>>>>>>>><<<<<<<<<<<<<<<')
+            print(sys.COLORS.red .. '>>> Drop in training > 50% <<<')
+            print(sys.COLORS.red .. '>>>>>>>>>>>>>>><<<<<<<<<<<<<<<')
+            model = prevModel
+            w, dE_dw = model:getParameters()
+         end
+
          print('\n')
 
       else
@@ -406,6 +416,9 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
       end
 
       --save model every 5 iterations
+      if i == 1 then
+         w, dE_dw = netToolkit.saveNet(model, opt.save_dir .. 'model-' .. i .. '.net', verbose)
+      end
       if (i % 5 == 0) then
          w, dE_dw = netToolkit.saveNet(model, opt.save_dir .. 'model-' .. i .. '.net', verbose)
          statFile:write(string.format('\nTraining & testing time for %d epochs: %.2f minutes\n', i, (trainTestTime.train.total:sum() + trainTestTime.test.total:sum())/60))
