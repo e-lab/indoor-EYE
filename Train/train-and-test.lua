@@ -245,11 +245,9 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
          --print weights and gradweights statistics
          if opt.print_weight_stat or opt.debug then
 
-            if opt.debug then
-               local wsMin,  wsMax,  wsAvg,  wsStd  = {},{},{},{}
-               local gwsMin, gwsMax, gwsAvg, gwsStd = {},{},{},{}
-               local style = {}
-            end
+            local wsMin,  wsMax,  wsAvg,  wsStd  = {},{},{},{}
+            local gwsMin, gwsMax, gwsAvg, gwsStd = {},{},{},{}
+            local style = {}
 
             for _,seq in ipairs(model.modules) do
                for _,m in ipairs(seq.modules) do
