@@ -218,12 +218,12 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
       targets = targets:cuda()
    end
 
+   local prevTrainAcc = 0
+
    for i = 1, opt.niters do
 
       prevModel = model:clone()
       hasNaN = false
-      print('train_confusion.totalValid: ' .. train_confusion.totalValid)
-      prevTrainAcc = train_confusion.totalValid
       -------------------------------------------------------------------------------
       --train
       local time = sys.clock()
@@ -242,80 +242,83 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
          print(string.format("======> Train CE error: %.2f", ce_train_error))
 
          print_confusion_matrix(train_confusion, '======> Train')
+      else
+         xlua.progress(i, opt.niters)
+      end
 
-         --print weights and gradweights statistics
-         if opt.print_weight_stat or opt.debug then
+      --print weights and gradweights statistics
+      if opt.print_weight_stat or opt.debug then
 
-            local wsMin,  wsMax,  wsAvg,  wsStd  = {},{},{},{}
-            local gwsMin, gwsMax, gwsAvg, gwsStd = {},{},{},{}
-            local style = {}
+         local wsMin,  wsMax,  wsAvg,  wsStd  = {},{},{},{}
+         local gwsMin, gwsMax, gwsAvg, gwsStd = {},{},{},{}
+         local style = {}
 
-            for _,seq in ipairs(model.modules) do
-               for _,m in ipairs(seq.modules) do
-                  if m.printable then
+         for _,seq in ipairs(model.modules) do
+            for _,m in ipairs(seq.modules) do
+               if m.printable then
 
-                     -- Computing <weight> statistics
-                     local ws = m.weight:float()
-                     if opt.debug then
-                        -- Detecting and removing NaNs
-                        if ws:ne(ws):sum() > 0 then
-                           print(sys.COLORS.red .. m.text .. ' weights has NaN/s')
-                           hasNaN = true
-                        end
-                        ws[ws:ne(ws)] = 0
-
-                        wsMin[m.text] = ws:min()
-                        wsMax[m.text] = ws:max()
-                        wsAvg[m.text] = ws:mean()
-                        wsStd[m.text] = ws:std()
+                  -- Computing <weight> statistics
+                  local ws = m.weight:float()
+                  if opt.debug then
+                     -- Detecting and removing NaNs
+                     if ws:ne(ws):sum() > 0 then
+                        print(sys.COLORS.red .. m.text .. ' weights has NaN/s')
+                        hasNaN = true
                      end
+                     ws[ws:ne(ws)] = 0
 
-                     -- Compute max L2 norw of neuron weights
-                     local maxL2 = 0
-                     for i2 = 1, ws:size(1) do
-                        local neuronL2 = ws[i2]:norm()
-                        if neuronL2 > maxL2 then
-                           maxL2 = neuronL2
-                        end
-                     end
-
-                     ws = ws:abs()
-                     local ws_small = ws:lt(1e-5):sum()
-                     local ws_big = ws:gt(1e+2):sum()
-
-                     -- Computing <gradients> statistics
-                     local gws = m.gradWeight:float()
-                     if opt.debug then
-                        -- Detecting and removing NaNs
-                        if gws:ne(gws):sum() > 0 then
-                           print(sys.COLORS.red .. m.text .. ' gradients has NaN/s')
-                           hasNaN = true
-                        end
-                        gws[gws:ne(gws)] = 0
-
-                        gwsMin[m.text] = gws:min()
-                        gwsMax[m.text] = gws:max()
-                        gwsAvg[m.text] = gws:mean()
-                        gwsStd[m.text] = gws:std()
-                     end
-
-                     gws = gws:abs()
-                     local gws_small = gws:lt(1e-5):sum()
-                     local gws_big = gws:gt(1e+2):sum()
-
-                     -- Setting plotting style
-                     if opt.debug then style[m.text] = '-' end
-
-                     -- Printing some stats
-                     if opt.print_weight_stat then
-                        print(m.text)
-                        print(string.format('max L2 weights norm: %f', maxL2))
-                        print(string.format('#small weights: %d, big weights: %d', ws_small, ws_big))
-                        print(string.format('#small grads  : %d, big grads  : %d', gws_small, gws_big))
-                     end
-
+                     wsMin[m.text] = ws:min()
+                     wsMax[m.text] = ws:max()
+                     wsAvg[m.text] = ws:mean()
+                     wsStd[m.text] = ws:std()
                   end
+
+                  -- Compute max L2 norw of neuron weights
+                  local maxL2 = 0
+                  for i2 = 1, ws:size(1) do
+                     local neuronL2 = ws[i2]:norm()
+                     if neuronL2 > maxL2 then
+                        maxL2 = neuronL2
+                     end
+                  end
+
+                  ws = ws:abs()
+                  local ws_small = ws:lt(1e-5):sum()
+                  local ws_big = ws:gt(1e+2):sum()
+
+                  -- Computing <gradients> statistics
+                  local gws = m.gradWeight:float()
+                  if opt.debug then
+                     -- Detecting and removing NaNs
+                     if gws:ne(gws):sum() > 0 then
+                        print(sys.COLORS.red .. m.text .. ' gradients has NaN/s')
+                        hasNaN = true
+                     end
+                     gws[gws:ne(gws)] = 0
+
+                     gwsMin[m.text] = gws:min()
+                     gwsMax[m.text] = gws:max()
+                     gwsAvg[m.text] = gws:mean()
+                     gwsStd[m.text] = gws:std()
+                  end
+
+                  gws = gws:abs()
+                  local gws_small = gws:lt(1e-5):sum()
+                  local gws_big = gws:gt(1e+2):sum()
+
+                  -- Setting plotting style
+                  if opt.debug then style[m.text] = '-' end
+
+                  -- Printing some stats
+                  if opt.print_weight_stat then
+                     print(m.text)
+                     print(string.format('max L2 weights norm: %f', maxL2))
+                     print(string.format('#small weights: %d, big weights: %d', ws_small, ws_big))
+                     print(string.format('#small grads  : %d, big grads  : %d', gws_small, gws_big))
+                  end
+
                end
+            end
             end
 
             -- Logging stats
@@ -374,12 +377,10 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
             model = prevModel:clone()
             w, dE_dw = model:getParameters()
          end
+         prevTrainAcc = train_confusion.totalValid
 
          print('\n')
 
-      else
-         xlua.progress(i, opt.niters)
-      end
       -------------------------------------------------------------------------------
 
       -------------------------------------------------------------------------------
