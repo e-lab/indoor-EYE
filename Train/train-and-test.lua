@@ -222,6 +222,7 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
 
       prevModel = model:clone()
       hasNaN = false
+      print('train_confusion.totalValid: ' .. train_confusion.totalValid)
       prevTrainAcc = train_confusion.totalValid
       -------------------------------------------------------------------------------
       --train
@@ -359,17 +360,18 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
             print(sys.COLORS.red .. '>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<')
             print(sys.COLORS.red .. '>>> NaN detected! Retraining same epoch! <<<')
             print(sys.COLORS.red .. '>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<')
-            model = prevModel
+            model = prevModel:clone()
             w, dE_dw = model:getParameters()
             hasNaN = false
          end
 
+         print ('train_confusion.totalValid: ' .. train_confusion.totalValid .. ', prevTrainAcc: ' .. prevTrainAcc)
          if train_confusion.totalValid < .5 * prevTrainAcc then
             print()
             print(sys.COLORS.red .. '>>>>>>>>>>>>>>><<<<<<<<<<<<<<<')
             print(sys.COLORS.red .. '>>> Drop in training > 50% <<<')
             print(sys.COLORS.red .. '>>>>>>>>>>>>>>><<<<<<<<<<<<<<<')
-            model = prevModel
+            model = prevModel:clone()
             w, dE_dw = model:getParameters()
          end
 
