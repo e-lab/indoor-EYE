@@ -92,28 +92,26 @@ function init_net()
 
    local data = {}
    print('loading unsup model')
-   data.preproc = torch.load('../Train/results/preproc.t7')
-   local model = torch.load('../Train/results/model-5.net')
 
-   local cnn = model:get(1)
-   data.cnn = convert(cnn)
-   data.classifier = model:get(2)
+   data.preproc = torch.load('preproc.t7')
+   model = torch.load('model-25.net')
+   data.cnn = model.modules[1]
+   data.classifier = model.modules[2]
+
    --print(data.u1net.modules)
    --print(data.classifier.modules)
    
-   local classes = {'mouse', 'printer', 'cellphone', 'cup', 'laptop', 'keyboard', 
-                    'desk', 'bottle-of-water', 'trash-can'}
+   classes = {'cup', 'table', 'apple', 'orange', 'banana', 'plate', 'soupbowl'}
 
-   local colours = {[ 1] = {0.7, 0.7, 0.3}, -- mouse
-				        [ 2] = {0.4, 0.4, 0.8}, -- printer
-				        [ 3] = {0.0, 0.9, 0.0}, -- phone
-				        [ 4] = {1.0, 0.0, 0.3}, -- cup
-				        [ 5] = {0.3, 0.3, 0.3}, -- laptop
-				        [ 6] = {1.0, 0.1, 0.1}, -- keyboard
-				        [ 7] = {0.0, 0.7, 0.9}, -- desk
-				        [ 8] = {0.0, 0.0, 1.0}, -- bottle
-				        [ 9] = {0.5, 0.5, 0.0}} -- trashcan
-			
+   local colours = {[ 1] = {0.9, 0.8, 0.5}, -- cup
+				        [ 2] = {0.2, 0.2, 0.2}, -- dinning table
+				        [ 3] = {0.0, 1, 0.0}, -- apple
+				        [ 4] = {1.0, 0.5, 0}, -- orange
+							--[4]={0,0,0},
+				        [ 5] = {1, 1, 0}, -- banana
+				        [ 6] = {1.0, 0.4, 0.6}, -- plale
+				        [ 7] = {0.0, 0.4, 0.0}} -- soupbowl
+
    return data, classes, colours
 
 end
