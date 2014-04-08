@@ -410,7 +410,7 @@ function load_data(data_file, info_file, sfile, fact)
             --select random shifted subimage
             x1 = math.floor(torch.uniform(opt.jitter + 1))
             y1 = math.floor(torch.uniform(opt.jitter + 1))
-               
+
          end
 
          if opt.parts then
@@ -452,7 +452,7 @@ function load_data(data_file, info_file, sfile, fact)
 
       local n = nbatches() * opt.batchSize
       data.shuffle = torch.randperm(n):type('torch.LongTensor')
-      
+
    end
 
    -- augment dataset:
@@ -769,35 +769,4 @@ function csv2table(csv_file, out_file)
    torch.save(out_file, class_names)
    print('==> Saved ' .. out_file)
 
-end
-
-function nilling(module)
-   module.gradBias   = nil
-   if module.finput then module.finput = torch.Tensor() end
-   module.gradWeight = nil
-   module.output     = torch.Tensor()
-   module.fgradInput = nil
-   module.gradInput  = nil
-end
-
-function netLighter(network)
-   nilling(network)
-   if network.modules then
-      for _,a in ipairs(network.modules) do
-         netLighter(a)
-      end
-   end
-end
-
-function saveNet(model, filename, verbose)
-   --   local filename = paths.concat(opt. name)
-   if verbose then
-      print('==> saving model to '..filename)
-   end
-   modelToSave = model:clone()
-   modelToSave:float()
-
-   netLighter(modelToSave)
---   print(modelToSave.modules)
-   torch.save(filename, modelToSave)
 end
