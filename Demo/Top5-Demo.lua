@@ -103,16 +103,18 @@ function show(idx)
    win:setfontsize(15)
 
    -- Computing index of decreasing value ordered prob.
-   local _, guess = output:sort(true)
+   local sortedOutput, guess = output:sort(true)
 
    -- Printing first 5 most likely predictions
    for i = 1,5 do
+      win:rectangle(10,3+20 * i,math.exp(sortedOutput[i])*130,2)
       win:moveto(10,20 * i)
       if guess[i] == l and not opt.camera then
          win:setcolor('red')
       else
          win:setcolor('black')
       end
+      win:fill()
       win:show(classes[guess[i]][1])
    end
 end
