@@ -222,8 +222,10 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
 
    for i = 1, opt.niters do
 
+      prevModel = nil
+      collectgarbage()
       prevModel = model:clone()
-      hasNaN = false
+      local hasNaN = false
       -------------------------------------------------------------------------------
       --train
       local time = sys.clock()
@@ -363,6 +365,8 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
             print(sys.COLORS.red .. '>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<')
             print(sys.COLORS.red .. '>>> NaN detected! Retraining same epoch! <<<')
             print(sys.COLORS.red .. '>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<')
+            model = nil
+            collectgarbage()
             model = prevModel:clone()
             w, dE_dw = model:getParameters()
             hasNaN = false
@@ -374,6 +378,8 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
             print(sys.COLORS.red .. '>>>>>>>>>>>>>>><<<<<<<<<<<<<<<')
             print(sys.COLORS.red .. '>>> Drop in training > 50% <<<')
             print(sys.COLORS.red .. '>>>>>>>>>>>>>>><<<<<<<<<<<<<<<')
+            model = nil
+            collectgarbage()
             model = prevModel:clone()
             w, dE_dw = model:getParameters()
          end
