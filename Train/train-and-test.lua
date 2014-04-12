@@ -220,8 +220,10 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
 
    for i = 1, opt.niters do
 
+      prevModel = nil
+      collectgarbage()
       prevModel = model:clone()
-      hasNaN = false
+      local hasNaN = false
       -------------------------------------------------------------------------------
       --train
       local time = sys.clock()
@@ -249,11 +251,9 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
          --print weights and gradweights statistics
          if opt.print_weight_stat or opt.debug then
 
-            if opt.debug then
-               local wsMin,  wsMax,  wsAvg,  wsStd  = {},{},{},{}
-               local gwsMin, gwsMax, gwsAvg, gwsStd = {},{},{},{}
-               local style = {}
-            end
+            local wsMin,  wsMax,  wsAvg,  wsStd  = {},{},{},{}
+            local gwsMin, gwsMax, gwsAvg, gwsStd = {},{},{},{}
+            local style = {}
 
             for _,seq in ipairs(model.modules) do
                for _,m in ipairs(seq.modules) do
@@ -365,10 +365,25 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
             print(sys.COLORS.red .. '>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<')
             print(sys.COLORS.red .. '>>> NaN detected! Retraining same epoch! <<<')
             print(sys.COLORS.red .. '>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<')
-            model = prevModel
+            model = nil
+            collectgarbage()
+            model = prevModel:clone()
             w, dE_dw = model:getParameters()
             hasNaN = false
          end
+
+         print ('train_confusion.totalValid: ' .. train_confusion.totalValid .. ', prevTrainAcc: ' .. prevTrainAcc)
+         if train_confusion.totalValid < .5 * prevTrainAcc then
+            print()
+            print(sys.COLORS.red .. '>>>>>>>>>>>>>>><<<<<<<<<<<<<<<')
+            print(sys.COLORS.red .. '>>> Drop in training > 50% <<<')
+            print(sys.COLORS.red .. '>>>>>>>>>>>>>>><<<<<<<<<<<<<<<')
+            model = nil
+            collectgarbage()
+            model = prevModel:clone()
+            w, dE_dw = model:getParameters()
+         end
+         prevTrainAcc = train_confusion.totalValid
 
          print('\n')
 
