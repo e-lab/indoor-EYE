@@ -41,7 +41,7 @@ torch.setdefaulttensortype('torch.FloatTensor')
 
 -- Loading different parts -----------------------------------------------------
 -- Loading net
-netPath = '/home/atcold/work/indoor-EYE-results/' .. opt.model
+netPath = opt.model
 net = torch.load(netPath)
 
 -- Loading input
@@ -95,12 +95,12 @@ function show(idx)
    end
 
    -- Drawing semi-transparent rectagle on top left
-   win:rectangle(0,0,150,110)
-   win:setcolor(1,1,1,.3)
+   win:rectangle(0,0,180,110)
+   win:setcolor(0,0,0,.3)
    win:fill()
 
    -- Set font size to a visible dimension
-   win:setfontsize(15)
+   win:setfontsize(20)
 
    -- Computing index of decreasing value ordered prob.
    local sortedOutput, guess = output:sort(true)
@@ -112,7 +112,7 @@ function show(idx)
       if guess[i] == l and not opt.camera then
          win:setcolor('red')
       else
-         win:setcolor('black')
+         win:setcolor('white')
       end
       win:fill()
       win:show(classes[guess[i]][1])
@@ -125,7 +125,7 @@ if not opt.camera then
 end
 
 i = 1
-while true do
+while win:valid() do
    show(i)
    i = i+1
    if not opt.camera then
