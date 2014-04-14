@@ -118,7 +118,7 @@ function show(idx)
    end
 
    -- Drawing semi-transparent rectagle on top left
-   win:rectangle(0,0,180,110)
+   win:rectangle(0,0,190,140)
    win:setcolor(0,0,0,.3)
    win:fill()
 
@@ -130,8 +130,8 @@ function show(idx)
 
    -- Printing first 5 most likely predictions
    for i = 1,5 do
-      win:rectangle(10,3+20 * i,math.exp(sortedOutput[i])*130,2)
-      win:moveto(10,20 * i)
+      win:rectangle(10,4+25 * i,math.exp(sortedOutput[i])*(190-20),2)
+      win:moveto(10,25 * i)
       if guess[i] == l and not opt.camera then
          win:setcolor('red')
       else
