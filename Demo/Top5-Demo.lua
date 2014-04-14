@@ -43,7 +43,27 @@ torch.setdefaulttensortype('torch.FloatTensor')
 -- Loading different parts -----------------------------------------------------
 -- Loading net
 netPath = opt.model
+-- netPath = '/home/atcold/work/indoor-EYE-results/' .. opt.model
 net = torch.load(netPath)
+
+-- Iterative function definition for disabling the dropouts
+local function disableDropout(module)
+   if module.__typename == 'nn.Dropout' then
+      module.train = false
+   end
+end
+
+local function findAndDisableDropouts(network)
+   disableDropout(network)
+   if network.modules then
+      for _,a in ipairs(network.modules) do
+         findAndDisableDropouts(a)
+      end
+   end
+end
+
+-- Disabling the dropouts
+findAndDisableDropouts(net)
 
 -- Loading input
 local stat
