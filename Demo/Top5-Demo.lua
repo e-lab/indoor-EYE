@@ -80,7 +80,7 @@ end
 dofile('../Train/Data/indoor-classes.lua')
 
 -- Build window (not final solution)
-win = qtwidget.newwindow(4*opt.imageSide,4*opt.imageSide,'New window')
+win = qtwidget.newwindow(4*opt.imageSide,4*opt.imageSide,'TeraDeep Image Parser')
 
 -- Displaying routine
 function show(idx)
