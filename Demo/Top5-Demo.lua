@@ -35,7 +35,7 @@ opt = lapp(title .. [[
 --histogram                                      Shows prediction's histogram
 --imageSide      (default 128                  ) Image's side length
 --fps            (default 2                    ) Frames per second (camera setting)
---hdcam          (default true                 ) Use of HD mac camera for demos
+--hdcam                                          Use of HD mac camera for demos
 ]])
 io.write(title)
 torch.setdefaulttensortype('torch.FloatTensor')
@@ -68,7 +68,8 @@ findAndDisableDropouts(net)
 -- Loading input
 local stat
 if opt.camera then
-   cam = image.Camera{}
+   if not opt.hdcam then cam = image.Camera{}
+   else cam = image.Camera{width = 640, height = 360} end
    local statPath = string.gsub(netPath,'%a+%-%d+%.net','preproc.t7')
    stat = torch.load(statPath)
 else
@@ -86,9 +87,7 @@ win = qtwidget.newwindow(4*opt.imageSide,4*opt.imageSide,'TeraDeep Image Parser'
 function show(idx)
    local input, l, c, leg
    if opt.camera then
-      if opt.hdcam then input = image.scale(cam:forward(), opt.imageSide*16/9,  opt.imageSide)
-      else input = image.scale(cam:forward(),'^' .. opt.imageSide)
-      end
+      input = image.scale(cam:forward(),'^' .. opt.imageSide)
       local w = (#input)[3]
       input = image.crop(input,w/2-opt.imageSide/2,0,w/2+opt.imageSide/2,opt.imageSide)
       for c = 1,3 do
