@@ -142,6 +142,7 @@ dofile('Data/indoor-classes.lua')
 
 torch.manualSeed(opt.seed)
 torch.setnumthreads(opt.num_threads) --some of data scripts may change numthreads, so we need to do it here
+print('Currently using ' .. torch.getnumthreads() .. ' threads')
 torch.setdefaulttensortype('torch.FloatTensor')
 os.execute('mkdir -p ' .. opt.save_dir) --create folder for saving results
 
