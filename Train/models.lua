@@ -5,16 +5,16 @@
 function get_model1()
 
    --options for (conv+pool+threshold) layers
-   local nConvLayers = 3 --number of (conv+pool+threshold) layers
-   local nFeatureMaps= {[0]=3, 16, 16, 16} --number of feature maps in conv layers
-   local filterSize  = {        9,  9,  9} --filter sizes in conv layers
-   local convPadding = {        0,  0,  0}
-   local convStride  = {        1,  1,  1}
-   local poolSize    = {        4,  4,  4}
-   local poolStride  = {        4,  4,  4}
+   local nConvLayers = 5 --number of (conv+pool+threshold) layers
+   local nFeatureMaps= {[0]=3, 32, 64, 96, 96, 64} --number of feature maps in conv layers
+   local filterSize  = {        9,  5,  3,  3,  3} --filter sizes in conv layers
+   local convPadding = {        0,  0,  0,  0,  0}
+   local convStride  = {        1,  1,  1,  1,  1}
+   local poolSize    = {        2,  2,  1,  1,  2}
+   local poolStride  = {        2,  2,  1,  1,  2}
 
    --options for linear layers
-   local neuronsPerLinearLayer = {256, 256} --number of neurons in linear layer
+   local neuronsPerLinearLayer = {1024, 1024} --number of neurons in linear layer
 
    --neuralnet model consists of submodel1 and submodel2
    local model = nn.Sequential()

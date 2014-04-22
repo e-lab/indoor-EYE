@@ -131,6 +131,15 @@ elseif opt.subsample_name == 'indoor51' then
               {'iron',               {659}},
               {'vacuum',             {666}}
              }
+
+elseif opt.subsample_name == 'imagenet' then
+
+   local fullClasses = torch.load(data_folder .. 'classes.th')
+   classes = {}
+   for i = 1, 1000 do
+      table.insert(classes, {fullClasses[i], {i}})
+   end
+
 end
 
 class_names = {}
