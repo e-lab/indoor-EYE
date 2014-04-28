@@ -43,7 +43,7 @@ Learning parameters
    --learningRateDecay (default 1e-7)
    --weightDecay       (default 0   )
    --momentum          (default 0   )
-   --batchSize         (default 32  )
+   --batchSize         (default 128 )
    --niters            (default 100 )
 
 Saving parameters and temporary data

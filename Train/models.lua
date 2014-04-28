@@ -43,7 +43,9 @@ function get_model1()
    --add first 1..nConvLayers layers (conv+pool+threshold)
    for i = 1, nConvLayers do
 
-      local test_batch = torch.Tensor(64, nFeatureMaps[i - 1], mapsizes[i - 1], mapsizes[i - 1])
+      local test_batch = torch.Tensor(128, nFeatureMaps[i - 1], mapsizes[i - 1], mapsizes[i - 1])
+
+      local convLayer, poolLayer
 
       if opt.cuda then
 
@@ -172,7 +174,7 @@ function get_model1()
       '==> model layer %2d  -  filter size: %2d  |  spatial extent: %3dx%3d  |  feature maps: %3d  |  hidden neurons: %6d  |  unique weights: %5d  |  connections: %9d\n',
       i, filterSize[i], mapsizes[i], mapsizes[i], nFeatureMaps[i], nHiddenNeurons[i], nUniqueWeights[i], nConnections[i]
       )
-      io.write(s)
+      if opt.verbose then io.write(s) end
       statFile:write(s)
       statFile:flush()
 
