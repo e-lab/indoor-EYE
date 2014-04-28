@@ -368,7 +368,7 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
             print(sys.COLORS.red .. '>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<')
             print(sys.COLORS.red .. '>>> NaN detected! Retraining same epoch! <<<')
             print(sys.COLORS.red .. '>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<')
-            model = nil
+            model, w, dE_dw = nil, nil, nil
             collectgarbage()
             model = prevModel:clone()
             w, dE_dw = model:getParameters()
@@ -378,7 +378,7 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
             print(sys.COLORS.red .. '>>>>>>>>>>>>>>><<<<<<<<<<<<<<<')
             print(sys.COLORS.red .. '>>> Drop in training > 50% <<<')
             print(sys.COLORS.red .. '>>>>>>>>>>>>>>><<<<<<<<<<<<<<<')
-            model = nil
+            model, w, dE_dw = nil, nil, nil
             collectgarbage()
             model = prevModel:clone()
             w, dE_dw = model:getParameters()
