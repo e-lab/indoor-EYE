@@ -127,8 +127,9 @@ function get_model1()
       submodel2:add(nn.Threshold(0, 0))
       -- If dropout is not 0
       if opt.dropout > 0 then
-         dropout[i+DOidx] = nn.Dropout(opt.dropout)
-         submodel2:add(dropout[i+DOidx])
+         dropout[DOidx] = nn.Dropout(opt.dropout)
+         submodel2:add(dropout[DOidx])
+         DOidx = DOidx + 1
       end
 
       --get layer sizes
