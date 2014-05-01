@@ -186,11 +186,30 @@ function get_model1()
 
 end
 
+-- Iterative function definition for recovering the dropout table
+local function assignDropout(dropoutTable,module)
+   if module.__typename == 'nn.Dropout' then
+      dropoutTable[#dropoutTable+1] = module
+   end
+end
+
+function recoverDropoutTable(dropoutTable,network)
+   assignDropout(dropoutTable,network)
+   if network.modules then
+      for _,a in ipairs(network.modules) do
+         recoverDropoutTable(dropoutTable,a)
+      end
+   end
+end
 
 function get_model2(networkFile)
 
    -- Load model from file
    local model = netToolkit.loadNet(networkFile)
+
+   -- Recover the dropout pointers
+   local dropout
+   recoverDropoutTable(dropout,model)
 
    -- Loss: NLL
    local loss = nn.ClassNLLCriterion()
