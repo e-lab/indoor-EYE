@@ -182,6 +182,7 @@ function run(trainData, testData)
    else
       model, loss = get_model2(opt.network)
    end
+   collectgarbage() -- get rid of craps from the GPU's RAM
 
    --train classifier
    local train_acc, test_acc = train_and_test(trainData, testData, model, loss, opt.plot, opt.verbose, dropout) --(train-and-test.lua)
