@@ -219,13 +219,17 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
    end
 
    local prevTrainAcc = 0
+   local trainedSuccessfully = true
+   local hasNaN
+   local weightsBackup = torch.Tensor(w:size())
 
    for i = 1, opt.niters do
 
-      prevModel = nil
-      collectgarbage()
-      prevModel = model:clone()
-      local hasNaN = false
+      if trainedSuccessfully then
+         print(sys.COLORS.green .. '==> Epoch trained successfully - backing up network\'s weights')
+         weightsBackup:copy(w)
+         hasNaN = false
+      end
       -------------------------------------------------------------------------------
       --train
       local time = sys.clock()
@@ -368,22 +372,19 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
             print(sys.COLORS.red .. '>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<')
             print(sys.COLORS.red .. '>>> NaN detected! Retraining same epoch! <<<')
             print(sys.COLORS.red .. '>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<')
-            model, w, dE_dw = nil, nil, nil
-            collectgarbage()
-            model = prevModel:clone()
-            w, dE_dw = model:getParameters()
+            w:copy(weightsBackup)
             hasNaN = false
+            trainedSuccessfully = false
          elseif train_confusion.totalValid < .5 * prevTrainAcc then
             print()
             print(sys.COLORS.red .. '>>>>>>>>>>>>>>><<<<<<<<<<<<<<<')
             print(sys.COLORS.red .. '>>> Drop in training > 50% <<<')
             print(sys.COLORS.red .. '>>>>>>>>>>>>>>><<<<<<<<<<<<<<<')
-            model, w, dE_dw = nil, nil, nil
-            collectgarbage()
-            model = prevModel:clone()
-            w, dE_dw = model:getParameters()
+            w:copy(weightsBackup)
+            trainedSuccessfully = false
          else
             prevTrainAcc = train_confusion.totalValid
+            trainedSuccessfully = true
          end
 
          print('\n')
