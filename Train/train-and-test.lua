@@ -43,6 +43,7 @@ function train(data, model, loss, dropout)
       end
 
       -- optimize on current mini-batch
+      collectgarbage()
       optim.sgd(eval_E, w, optimState)
 
       -- Switching off the dropout
