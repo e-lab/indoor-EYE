@@ -11,14 +11,14 @@ require 'eex'
 
 opt = lapp([[
 
-   --show_test           (default false) set true if you want to look at test images
-   --show_train          (default false) set true if you want to look at train images
-   --subsample_test      (default false) set true to create subsample of test imagenet images
-   --subsample_train     (default false) set true to create subsample of train imagenet images
-   --save_test           (default false) save test images. Helps to check data
-   --save_train          (default false) save train images. Helps to check data
+   --show_test                           set true if you want to look at test images
+   --show_train                          set true if you want to look at train images
+   --subsample_test                      set true to create subsample of test imagenet images
+   --subsample_train                     set true to create subsample of train imagenet images
+   --save_test                           save test images. Helps to check data
+   --save_train                          save train images. Helps to check data
    --subsample_name      (default kitchen ) name of imagenet subsample.
-   --convert_class_names (default false) convert csv class file to torch format
+   --convert_class_names                    convert csv class file to torch format
 
    --src_test_data       (default test-data-imagenet.t7 ) --file with compressed jpegs
    --src_test_info       (default test-info-imagenet.t7 ) --file with labels, image sizes and paddings
