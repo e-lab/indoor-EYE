@@ -131,14 +131,10 @@ os.execute('mkdir -p ' .. opt.temp_dir) --create folder for temporary data
 -------------------------------------------------------------------------------
 
 --set data paths
-data_folder = eex.datasetsPath() .. 'imagenet2012/'
-train_data_file = data_folder .. 'train-data-' .. opt.subsample_name .. '.t7' --file with compressed jpegs
+data_folder = eex.datasetsPath() .. 'originalDataset/'
 train_info_file = data_folder .. 'train-info-' .. opt.subsample_name .. '.t7' --file with labels, image sizes and paddings
-test_data_file = data_folder .. 'test-data-' .. opt.subsample_name .. '.t7'
 test_info_file = data_folder .. 'test-info-' .. opt.subsample_name .. '.t7'
 
-<<<<<<< HEAD
-=======
 local testFolder = data_folder .. 'test-folder-' .. opt.subsample_name .. '/'
 local trainFolder = data_folder .. 'train-folder-' .. opt.subsample_name .. '/'
 
@@ -146,6 +142,7 @@ if (paths.dirp(testFolder))  then
    test_data_file = testFolder .. 'test-data-' .. opt.subsample_name
 else
    test_data_file = data_folder .. 'test-data-' .. opt.subsample_name .. '.t7'
+   test_info_file = data_folder .. 'test-info-' .. opt.subsample_name .. '.t7'
 end
 
 
@@ -155,7 +152,6 @@ else
    train_data_file = data_folder .. 'train-data-' .. opt.subsample_name .. '.t7'
 end
 
->>>>>>> d2725b5... BUGFIX remove duplicated line
 --load classes
 dofile('Data/indoor-classes.lua')
 -------------------------------------------------------------------------------
@@ -214,6 +210,7 @@ function run(trainData, testData)
 end
 
 -- Logging statistics ----------------------------------------------------------
+print '==> Set up Log'
 -- Open file in re-write mode (NOT append)
 statFile = io.open(opt.save_dir .. 'stat.txt','w+')
 -- Writing title
@@ -227,5 +224,6 @@ statFile:write(string.format('User command line input:%s\n',inputArg))
 statFile:flush()
 
 -- Training and testing --------------------------------------------------------
+print '==> Start Training'
 train_acc, test_acc = run(trainData, testData)
 
