@@ -20,13 +20,10 @@ opt = lapp([[
    --subsample_name      (default kitchen ) name of imagenet subsample.
    --convert_class_names                    convert csv class file to torch format
 
-   --src_test_data       (default test-data-imagenet.t7 ) --file with compressed jpegs
-   --src_test_info       (default test-info-imagenet.t7 ) --file with labels, image sizes and paddings
-   --src_train_data      (default train-data-imagenet.t7)
-   --src_train_info      (default train-info-imagenet.t7)
+   --sample_name         (default imagenet)
 
-   --width               (default 46) width of data. Only for show and save functions. 
-   --height              (default 46) height of data. Only for show and save functions. 
+   --width               (default 46) width of data. Only for show and save functions.
+   --height              (default 46) height of data. Only for show and save functions.
    --ncolors             (default 3 )
    --batchSize           (default 32)
    --jitter              (default 0 )
@@ -44,28 +41,50 @@ print(opt)
 dofile('data-imagenet.lua')
 -----------------------------------------------------------------------------------------------
 --set data paths
-path = eex.datasetsPath() .. 'imagenet2012/'
+data_folder = eex.datasetsPath() .. 'originalDataset/'
 
 --source data files
-src_train_data = path .. opt.src_train_data
-src_train_info = path .. opt.src_train_info
-src_test_data = path .. opt.src_test_data
-src_test_info = path .. opt.src_test_info
+src_train_info = data_folder .. 'train-info-' .. opt.sample_name .. '.t7' --file with labels, image sizes and paddings
+src_test_info = data_folder .. 'test-info-' .. opt.sample_name .. '.t7'
+
+local testFolder = data_folder .. 'test-folder-' .. opt.sample_name .. '/'
+local trainFolder = data_folder .. 'train-folder-' .. opt.sample_name .. '/'
+
+if (paths.dirp(testFolder))  then
+   src_test_data = testFolder .. 'test-data-' .. opt.sample_name
+else
+   src_test_data = data_folder .. 'test-data-' .. opt.sample_name .. '.t7'
+end
+
+if (paths.dirp(trainFolder))  then
+   src_train_data = trainFolder .. 'train-data-' .. opt.sample_name
+else
+   src_train_data = data_folder .. 'train-data-' .. opt.sample_name .. '.t7'
+end
 
 --destination subsample filenames
-train_data_file = path .. 'train-data-' .. opt.subsample_name .. '.t7'
-train_info_file = path .. 'train-info-' .. opt.subsample_name .. '.t7'
-test_data_file = path .. 'test-data-' .. opt.subsample_name .. '.t7'
-test_info_file = path .. 'test-info-' .. opt.subsample_name .. '.t7'
+folderTrain = data_folder .. 'train-folder-' .. opt.subsample_name
+if (not paths.dirp(folderTrain)) then
+   os.execute('mkdir ' .. folderTrain)
+end
+
+folderTest = data_folder .. 'test-folder-' .. opt.subsample_name
+if (not paths.dirp(folderTest)) then
+   os.execute('mkdir ' .. folderTest)
+end
+train_data_file = folderTrain .. '/train-data-' .. opt.subsample_name
+train_info_file = data_folder .. 'train-info-' .. opt.subsample_name .. '.t7'
+test_data_file = folderTest .. '/test-data-' .. opt.subsample_name
+test_info_file = data_folder .. 'test-info-' .. opt.subsample_name .. '.t7'
 
 if opt.convert_class_names then
    --convert class names from csv to torch table. Do this once.
-   print(path .. 'classes.csv', path .. 'classes.th')
-   csv2table(path .. 'classes.csv', path .. 'classes.th')
+   print(data_folder .. 'classes.csv', data_folder .. 'classes.th')
+   csv2table(data_folder .. 'classes.csv', data_folder .. 'classes.th')
 end
 
 --load class names
-imagenet_class_names = torch.load(path .. 'classes.th')
+imagenet_class_names = torch.load(data_folder .. 'classes.th')
 
 --define classes and class_names
 dofile('indoor-classes.lua')
