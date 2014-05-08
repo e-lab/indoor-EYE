@@ -35,16 +35,30 @@ local bs = opt.batchSize
 function load_data_mm(data_file, info_file)
 
    local dataset = torch.load(info_file)
-   dataset.data = torch.ByteStorage(data_file)
+   local number_file = 1
+   dataset.data = {}
+   if (dataset.file_range) then
+      number_file = dataset.file_range:size(1)
+      dataset.data_p = torch.LongTensor(number_file)
+      for file = 1, number_file do
+         dataset.data[file] = torch.ByteStorage(data_file .. '-file' .. file .. '.t7')
+         dataset.data_p[file] = tonumber(ffi.cast('intptr_t', torch.data(dataset.data[file])))
+      end
+   else
+      dataset.data[1] = torch.ByteStorage(data_file)
+      dataset.data_p[1] = tonumber(ffi.cast('intptr_t', torch.data(dataset.data[1])))
+   end
 
    local nsamples = dataset.labels:size(1)
    local samples = torch.FloatTensor(bs, c, h, w)
    local targets = torch.FloatTensor(bs)
    local jpegs = dataset.data
+   local jpegs_p = dataset.data_p
    local offsets = dataset.offsets
    local sizes = dataset.sizes
    local labels = dataset.labels
    local shuffle = torch.randperm(nsamples):type('torch.LongTensor')
+   local file_number = dataset.file_number
 
    --shuffle = torch.range(1, nsamples):type('torch.LongTensor')
 
@@ -93,18 +107,28 @@ function load_data_mm(data_file, info_file)
       local shuffle_p = ffi.cast('unsigned long *', args[13])
       local samples_p = ffi.cast('float *', args[14])
       local targets_p = ffi.cast('float *', args[15])
-      local jpegs_p   = ffi.cast('unsigned char *', args[16])
+      local number_file  = args[23]
+      local tab_j_p = ffi.cast('unsigned long *', args[16])
       local offsets_p = ffi.cast('unsigned long *', args[17])
       local sizes_p   = ffi.cast('unsigned long *', args[18])
       local labels_p  = ffi.cast('unsigned long *', args[19])
       local com       = ffi.cast('unsigned long *', args[20])
       local gm_p      = ffi.cast('float *', args[21])
-      local std_p      = ffi.cast('float *', args[22])
+      local std_p     = ffi.cast('float *', args[22])
+      local file_n_p  = ffi.cast('unsigned int *', args[24])
 
       local gmStorage = torch.FloatStorage(c, tonumber(ffi.cast('intptr_t', gm_p)))
       local global_mean = torch.FloatTensor(gmStorage)
       local stdStorage = torch.FloatStorage(c, tonumber(ffi.cast('intptr_t', std_p)))
       local global_std = torch.FloatTensor(stdStorage)
+
+      local jpegs_pStorage = torch.LongStorage(number_file, tonumber(ffi.cast('intptr_t', tab_j_p)))
+      local jpegs_p = torch.LongTensor(jpegs_pStorage)
+
+      local jpegs = {}
+      for file = 1, number_file do
+         jpegs[file] = ffi.cast('unsigned char *', ffi.cast('long', jpegs_p[file]))
+      end
 
       -- map samples batch to given pointer:
       local samplesStorage = torch.FloatStorage(bs*c*h*w, tonumber(ffi.cast('intptr_t',samples_p)))
@@ -133,7 +157,8 @@ function load_data_mm(data_file, info_file)
             -- decode jpeg:
             local offset = tonumber(offsets_p[ii] - 1)
             local size = tonumber(sizes_p[ii])
-            local jpegblob = jpegs_p + offset
+            local numFile = tonumber(file_n_p[ii])
+            local jpegblob = jpegs[numFile] + offset
             local sample = gm.Image():fromBlob(jpegblob,size):toTensor('float','RGB','DHW',true)
 
             -- distort sample
@@ -211,13 +236,15 @@ function load_data_mm(data_file, info_file)
    tonumber(ffi.cast('intptr_t', torch.data(shuffle))),
    tonumber(ffi.cast('intptr_t', torch.data(samples))),
    tonumber(ffi.cast('intptr_t', torch.data(targets))),
-   tonumber(ffi.cast('intptr_t', torch.data(jpegs))),
+   tonumber(ffi.cast('intptr_t', torch.data(jpegs_p))),
    tonumber(ffi.cast('intptr_t', torch.data(offsets))),
    tonumber(ffi.cast('intptr_t', torch.data(sizes))),
    tonumber(ffi.cast('intptr_t', torch.data(labels))),
    tonumber(ffi.cast('intptr_t', com)),
    tonumber(ffi.cast('intptr_t', torch.data(global_mean))),
-   tonumber(ffi.cast('intptr_t', torch.data(global_std)))
+   tonumber(ffi.cast('intptr_t', torch.data(global_std))),
+   number_file,
+   tonumber(ffi.cast('intptr_t', torch.data(file_number)))
    )
    thread:start(true)
 
@@ -232,6 +259,8 @@ function load_data_mm(data_file, info_file)
       offsets = offsets,
       sizes = sizes,
       labels = labels,
+      file_number = file_number,
+      jpegs_p = jpegs_p,
    }
 
    -- prepare batch, asynchronously
@@ -537,14 +566,12 @@ function filter_imagenet(src_data, src_info, dst_data, dst_info, new_classes, im
 
       xlua.progress(i, new_data_n)
 
-      local j = idxs[i]
-      local imagenet_label = d.labels[j]
-      new_data.labels[i] = map_imagenet_id[imagenet_label][1]
-      new_data.imagenet_labels[i] = imagenet_label
-      new_data.sizes[i] = d.sizes[j]
-      new_data.offsets[i] = offset
-      offset_old = offset
-      offset = offset + new_data.sizes[i]
+         -- update info
+         labels[global_index] = map_imagenet_id[imagenet_label][1]
+         imagenet_labels[global_index] = imagenet_label
+         sizes[global_index] = d.sizes[j]
+         offsets[global_index] = offset
+         file_number[global_index] = file
 
       t_new_jpegs[{{offset_old, offset - 1}}] = t_jpegs[{{d.offsets[j], d.offsets[j] + d.sizes[j] - 1}}]
 
