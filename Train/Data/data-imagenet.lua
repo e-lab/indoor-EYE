@@ -512,18 +512,20 @@ function filter_imagenet(src_data, src_info, dst_data, dst_info, new_classes, im
    --load src data
    print('Loading src data')
    local d = torch.load(src_info)
-   local jpegs = torch.ByteStorage(src_data)
-   local t_jpegs = torch.ByteTensor(jpegs)
 
    --map imagent ids to new class table
    local map_imagenet_id = create_imagenet_map(new_classes, 1000)
 
    --calc size of new data
    print('Calculating size of new data')
-   local new_data_size = 0 --size of all new images in bytes
-   local new_data_n = 0 --number of images in new data
+   local new_data_size = {0} --size of each new file in bytes
+   local new_data_n = {0} --number of images in each new file
+   local total_num = 0
    local idxs = {} --imagenet indexes of new images
    local class_size = torch.Tensor(#new_classes):zero() --current number of photos in each class
+   local numFile = 1
+   local MAX_SIZE = 512*1024*1024
+   local MAX_NUM = 25000
 
    torch.manualSeed(1)
    local shuffle = torch.randperm(d.labels:size(1))
@@ -536,35 +538,64 @@ function filter_imagenet(src_data, src_info, dst_data, dst_info, new_classes, im
       local label = d.labels[si]
       local i1 = map_imagenet_id[label][1]
 
+      if (new_data_n[numFile] == MAX_NUM or new_data_size[numFile] + d.sizes[si] > MAX_SIZE) then
+         numFile = numFile + 1
+         new_data_n[numFile] = 0
+         new_data_size[numFile] = 0
+      end
+
       if i1 > 0 and class_size[i1] < max_class_size then
          --image in new data
 
-         new_data_n = new_data_n + 1
-         new_data_size = new_data_size + d.sizes[si]
+         new_data_n[numFile] = new_data_n[numFile] + 1
+         total_num = total_num + 1
+         new_data_size[numFile] = new_data_size[numFile] + d.sizes[si]
          table.insert(idxs, si)
          class_size[i1] = class_size[i1] + 1
 
       end
 
    end
-   print('Number of samples: ' .. new_data_n .. ', data size: ' .. new_data_size)
+   print('Number of samples:')
+   print(new_data_n)
+   print('Data size:')
+   print(new_data_size)
 
    --allocate memory for new data
    print('Allocating memory')
-   local new_data = {}
-   new_data.labels = torch.LongTensor(new_data_n) --new labels
-   new_data.imagenet_labels = torch.LongTensor(new_data_n) --imagenet labels
-   new_data.sizes = torch.LongTensor(new_data_n) --new sizes
-   new_data.offsets = torch.LongTensor(new_data_n) --new offsets
-   local t_new_jpegs = torch.ByteTensor(new_data_size)
+   local labels = torch.LongTensor(total_num) --new labels
+   local imagenet_labels = torch.LongTensor(total_num) --imagenet labels
+   local sizes = torch.LongTensor(total_num) --new sizes
+   local offsets = torch.LongTensor(total_num) --new offsets
+   local file_number = torch.IntTensor(total_num) -- new file number
+   local file_range = torch.IntTensor(#new_data_n, 2) -- new range
+
+   local jpegs = {}
+   local t_jpegs = {}
+   for file = 1, d.file_range:size(1) do
+      jpegs[file] = torch.ByteStorage(src_data .. '-file' .. file .. '.t7')
+      t_jpegs[file] = torch.ByteTensor(jpegs[file])
+   end
 
    --copy data
-   print('Copy data')
+   print('Processing ' .. #new_data_n .. ' files')
    local offset = 1
+   local global_index = 1
 
-   for i = 1, new_data_n do
+   for file = 1, #new_data_n do
+      print('Copying file #' .. file)
 
-      xlua.progress(i, new_data_n)
+      local t_new_jpegs = torch.ByteTensor(new_data_size[file])
+      local offset = 1
+
+      -- update starting point of the file
+      file_range[file][1] = global_index
+
+      for i = 1, new_data_n[file] do
+         xlua.progress(i, new_data_n[file])
+
+         local j = idxs[global_index]
+         local imagenet_label = d.labels[j]
 
          -- update info
          labels[global_index] = map_imagenet_id[imagenet_label][1]
@@ -573,17 +604,39 @@ function filter_imagenet(src_data, src_info, dst_data, dst_info, new_classes, im
          offsets[global_index] = offset
          file_number[global_index] = file
 
-      t_new_jpegs[{{offset_old, offset - 1}}] = t_jpegs[{{d.offsets[j], d.offsets[j] + d.sizes[j] - 1}}]
+         -- update data
+         t_new_jpegs[{{offset, offset + d.sizes[j] - 1}}] = t_jpegs[d.file_number[j]][{{d.offsets[j], d.offsets[j] + d.sizes[j] - 1}}]
 
+         -- update auxilaries variables
+         offset = offset + sizes[global_index]
+         global_index = global_index + 1
+      end
+
+      file_range[file][2] = global_index - 1
+
+      print('Saving file #' .. file)
+      torch.save(dst_data .. '-file'.. file .. '.t7', torch.ByteTensor(new_data_size[file] - 107))
+      local mmjpegs = torch.ByteStorage(dst_data .. '-file' .. file .. '.t7', true)
+      mmjpegs:copy(t_new_jpegs:storage())
+
+      -- nil temporary data
+      t_new_jpegs = nil
+      mmjpegs = nil
+
+      collectgarbage()
    end
 
    --save data
-   print('Saving data')
-   torch.save(dst_data, torch.ByteTensor(new_data_size - 107))
-   local mmjpegs = torch.ByteStorage(dst_data, true)
-   mmjpegs:copy(t_new_jpegs:storage())
+   print 'Save info'
+   local info = {}
+   info.offsets = offsets
+   info.sizes = sizes
+   info.labels = labels
+   info.imagenet_labels = imagenet_labels
+   info.file_range = file_range
+   info.file_number = file_number
 
-   torch.save(dst_info, new_data)
+   torch.save(dst_info, info)
 
 end
 
