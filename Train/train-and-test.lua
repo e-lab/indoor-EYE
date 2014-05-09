@@ -179,9 +179,9 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
    }
 
    --get image size
-   local ivch = trainData.data:size(2)
-   local ivhe = trainData.data:size(3)
-   local ivwi = trainData.data:size(4)
+   local ivch = 3
+   local ivhe = opt.height
+   local ivwi = opt.width
 
    --init logger for train and test accuracy
    local logger = optim.Logger(opt.save_dir .. 'accuracy.log')
