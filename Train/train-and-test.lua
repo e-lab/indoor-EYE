@@ -240,12 +240,12 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
       train(trainData, model, loss, dropout)
 
       time = sys.clock() - time
-      trainTestTime.train.perSample[i] = time / trainData.data:size(1)
+      trainTestTime.train.perSample[i] = time / opt.batchSize
       trainTestTime.train.total    [i] = time
 
       if verbose then
          print(string.format("======> Time to learn 1 iteration = %.2f sec", time))
-         print(string.format("======> Time to train 1 sample = %.2f ms", time / trainData.data:size(1) * 1000))
+         print(string.format("======> Time to train 1 sample = %.2f ms", time / (opt.batchSize * trainData.nbatches()) * 1000))
          print(string.format("======> Train CE error: %.2f", ce_train_error))
 
          print_confusion_matrix(train_confusion, '======> Train')
@@ -399,12 +399,12 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
       if verbose then print('==> Test ' .. i) end
       test(testData, model, loss, dropout)
       time = sys.clock() - time
-      trainTestTime.test.perSample[i] = time / testData.data:size(1)
+      trainTestTime.test.perSample[i] = time / opt.batchSize
       trainTestTime.test.total    [i] = time
 
       if verbose then
          print(string.format("======> Time to test 1 iteration = %.2f sec", time))
-         print(string.format("======> Time to test 1 sample = %.2f ms", time / testData.data:size(1) * 1000))
+         print(string.format("======> Time to test 1 sample = %.2f ms", time / (opt.batchSize * testData.nbatches()) *  1000))
          print(string.format("======> Test CE error: %.2f", ce_test_error))
          print_confusion_matrix(test_confusion, '======> Test')
          print()
