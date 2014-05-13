@@ -13,7 +13,7 @@ require 'torchffi'
 require 'pl'
 require 'usefulFunctions'
 require 'sys'
-require('mobdebug').start()
+--require('mobdebug').start()
 
 -- Title definition -----------------------------------------------------------
 local title = [[
