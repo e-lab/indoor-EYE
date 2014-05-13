@@ -14,6 +14,7 @@ function train(data, model, loss, dropout)
    local t = 1
    local trainedSuccessfully = true
    local averageTimeLoading = 0
+   local cudaTime = 0
    nbFailures = 0
    local consecutiveFailures = 0
 
@@ -59,7 +60,9 @@ function train(data, model, loss, dropout)
 
       -- optimize on current mini-batch
       collectgarbage()
+      local timer = torch.Timer()
       optim.sgd(eval_E, w, optimState)
+
 
       -- Switching off the dropout
       if opt.dropout > 0 or opt.inputDO > 0 then
@@ -80,14 +83,16 @@ function train(data, model, loss, dropout)
             d.train = true
          end
       end
+      cudaTime = cudaTime + timer:time().real
 
       if (trainedSuccessfully) then
          consecutiveFailures = 0
          t = t + 1
-      elseif (consecutiveFailures < 5) then
-         print(sys.COLORS.red .. '\nFailed training on current batch. Retraining')
+      elseif (consecutiveFailures < 4) then
+         print(sys.COLORS.red .. '\nFailed training on current batch. Go to next batch')
          nbFailures = nbFailures + 1
          consecutiveFailures = consecutiveFailures + 1
+         t = t + 1
       else
          t = data.nbatches() + 1
       end
@@ -96,6 +101,7 @@ function train(data, model, loss, dropout)
    if (consecutiveFailures < 5) then
       ce_train_error = ce_train_error / (data.nbatches() * opt.batchSize)
       trainTestTime.loading = trainTestTime.loading + averageTimeLoading / data.nbatches()
+      trainTestTime.cuda = trainTestTime.cuda + cudaTime / data.nbatches()
 
       return true
    else
@@ -219,7 +225,6 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
    --init logger for train and test cross-entropy error
    local ce_logger = optim.Logger(opt.save_dir .. 'cross-entropy.log')
    --init train and test time
-
    trainTestTime   = {}
    trainTestTime.train   = {}
    trainTestTime.test    = {}
@@ -230,6 +235,7 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
    end
 
    trainTestTime.loading = 0
+   trainTestTime.cuda = 0
 
    -- Initialising debugging loggers
    local logMin, logMax, logAvg, logStd
@@ -261,8 +267,11 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
    nbFailures = 0
    local continue = true
    local epoch = 1
+   local epochInit = 0
+   local epochTrained = 0
    if opt.network ~= 'N/A' then
-      epoch = tonumber(string.match(opt.network, "%d+")) + 1
+      epochInit = tonumber(string.match(opt.network, "%d+"))
+      epoch = epochInit + 1
    end
 
    while continue do
@@ -278,10 +287,14 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
          trainTestTime.train.perSample = trainTestTime.train.perSample + time / (opt.batchSize * trainData.nbatches())
          trainTestTime.train.total     = trainTestTime.train.total + time
 
+         epochTrained = epochTrained + 1
+
          if verbose then
             print(string.format("======> Time to learn 1 iteration = %.2f sec", time))
             print(string.format("======> Time to train 1 sample = %.2f ms", time / (opt.batchSize * trainData.nbatches()) * 1000))
             print(string.format("======> Train CE error: %.2f", ce_train_error))
+            print(string.format("======> Time to load 1 batch = %.2f msec", trainTestTime.loading / epochTrained * 1000))
+            print(string.format("======> Time to cumpute 1 batch on the GPU = %.2f msec", trainTestTime.cuda / epochTrained * 1000))
             if nbFailures > 0 then
                print(sys.COLORS.red .. "======> Number of failures: %d", nbFailures)
             end
@@ -462,14 +475,16 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
          w, dE_dw = netToolkit.saveNet(model, opt.save_dir .. 'model-' .. epoch .. '.net', verbose)
          -- log every 5 ierations
          if (epoch % 5 == 0) then
-            statFile:write(string.format('\nTraining & testing time for %d epochs: %.2f minutes\n', epoch, (trainTestTime.train.total + trainTestTime.test.total)/60))
-            statFile:write(string.format('Average training time per sample: %.3f ms\n', trainTestTime.train.perSample * 200))
-            statFile:write(string.format('Average testing time per sample: %.3f ms\n', trainTestTime.test.perSample * 200))
-            statFile:write(string.format('Average loading time per batch: %.3f ms\n', trainTestTime.loading * 200)) -- 200 = 1000 / 5
+            statFile:write(string.format('\nTraining & testing time for %d epochs: %.2f minutes\n', epoch - epochInit, (trainTestTime.train.total + trainTestTime.test.total)/60))
+            statFile:write(string.format('Average training time per sample: %.3f ms\n', trainTestTime.train.perSample * 1000 / epochTrained))
+            statFile:write(string.format('Average testing time per sample: %.3f ms\n', trainTestTime.test.perSample * 1000 / epochTrained))
+            statFile:write(string.format('Average loading time per batch: %.3f ms\n', trainTestTime.loading * 1000 / epochTrained))
 
             trainTestTime.train.perSample = 0
             trainTestTime.test.perSample = 0
             trainTestTime.loading = 0
+            trainTestTime.cuda = 0
+            epochTrained = 0
 
             statFile:flush()
          end
@@ -486,7 +501,7 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
 
       else
          w:copy(weightsBackup)
-         print(sys.COLORS.red .. 'Process failed 5 times, retrain same epoch')
+         print(sys.COLORS.red .. '\nProcess failed 5 times in a row, retrain same epoch')
       end
    end
 
