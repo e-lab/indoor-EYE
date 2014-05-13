@@ -15,7 +15,7 @@ function train(data, model, loss, dropout)
    local trainedSuccessfully = true
    local averageTimeLoading = 0
    nbFailures = 0
-   consecutiveFailures = 0
+   local consecutiveFailures = 0
 
    while t <= data.nbatches() do
 
@@ -85,6 +85,7 @@ function train(data, model, loss, dropout)
          consecutiveFailures = 0
          t = t + 1
       elseif (consecutiveFailures < 5) then
+         print(sys.COLORS.red .. '\nFailed training on current batch. Retraining')
          nbFailures = nbFailures + 1
          consecutiveFailures = consecutiveFailures + 1
       else
@@ -92,9 +93,14 @@ function train(data, model, loss, dropout)
       end
    end
 
-   ce_train_error = ce_train_error / (data.nbatches() * opt.batchSize)
-   trainTestTime.loading = trainTestTime.loading + averageTimeLoading / data.nbatches()
+   if (consecutiveFailures < 5) then
+      ce_train_error = ce_train_error / (data.nbatches() * opt.batchSize)
+      trainTestTime.loading = trainTestTime.loading + averageTimeLoading / data.nbatches()
 
+      return true
+   else
+      return false
+   end
 end
 
 function test(data, model, loss, dropout)
@@ -253,7 +259,6 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
    local hasNaN
    local weightsBackup = torch.Tensor(w:size()):copy(w)
    nbFailures = 0
-   consecutiveFailures = 0
    local continue = true
    local epoch = 1
    if opt.network ~= 'N/A' then
@@ -261,234 +266,228 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
    end
 
    while continue do
-
-      if trainedSuccessfully then
-         print(sys.COLORS.green .. '==> Epoch trained successfully - backing up network\'s weights')
-         weightsBackup:copy(w)
-         hasNaN = false
-      end
       -------------------------------------------------------------------------------
       --train
       sys.tic()
       ce_train_error = 0
       if verbose then print('==> Train ' .. epoch) end
-      train(trainData, model, loss, dropout)
+      trainedSuccessfully = train(trainData, model, loss, dropout)
       local time = sys.toc()
 
-      trainTestTime.train.perSample = trainTestTime.train.perSample + time / (opt.batchSize * trainData.nbatches())
-      trainTestTime.train.total     = trainTestTime.train.total + time
+      if (trainedSuccessfully) then
+         trainTestTime.train.perSample = trainTestTime.train.perSample + time / (opt.batchSize * trainData.nbatches())
+         trainTestTime.train.total     = trainTestTime.train.total + time
 
-      if verbose then
-         print(string.format("======> Time to learn 1 iteration = %.2f sec", time))
-         print(string.format("======> Time to train 1 sample = %.2f ms", time / (opt.batchSize * trainData.nbatches()) * 1000))
-         print(string.format("======> Train CE error: %.2f", ce_train_error))
-         print(string.format("======> Number of failures: %d", nbFailures))
+         if verbose then
+            print(string.format("======> Time to learn 1 iteration = %.2f sec", time))
+            print(string.format("======> Time to train 1 sample = %.2f ms", time / (opt.batchSize * trainData.nbatches()) * 1000))
+            print(string.format("======> Train CE error: %.2f", ce_train_error))
+            if nbFailures > 0 then
+               print(sys.COLORS.red .. "======> Number of failures: %d", nbFailures)
+            end
 
-         print_confusion_matrix(train_confusion, '======> Train')
-      end
+            print_confusion_matrix(train_confusion, '======> Train')
+         end
 
-      --print weights and gradweights statistics
-      if opt.print_weight_stat or opt.debug then
+         --print weights and gradweights statistics
+         if opt.print_weight_stat or opt.debug then
 
-         local wsMin,  wsMax,  wsAvg,  wsStd  = {},{},{},{}
-         local gwsMin, gwsMax, gwsAvg, gwsStd = {},{},{},{}
-         local style = {}
+            local wsMin,  wsMax,  wsAvg,  wsStd  = {},{},{},{}
+            local gwsMin, gwsMax, gwsAvg, gwsStd = {},{},{},{}
+            local style = {}
 
-         for _,seq in ipairs(model.modules) do
-            for _,m in ipairs(seq.modules) do
-               if m.printable then
+            for _,seq in ipairs(model.modules) do
+               for _,m in ipairs(seq.modules) do
+                  if m.printable then
 
-                  -- Computing <weight> statistics
-                  local ws = m.weight:float()
-                  if opt.debug then
-                     -- Detecting and removing NaNs
-                     if ws:ne(ws):sum() > 0 then
-                        print(sys.COLORS.red .. m.text .. ' weights has NaN/s')
-                        hasNaN = true
+                     -- Computing <weight> statistics
+                     local ws = m.weight:float()
+                     if opt.debug then
+                        -- Detecting and removing NaNs
+                        if ws:ne(ws):sum() > 0 then
+                           print(sys.COLORS.red .. m.text .. ' weights has NaN/s')
+                           hasNaN = true
+                        end
+                        ws[ws:ne(ws)] = 0
+
+                        wsMin[m.text] = ws:min()
+                        wsMax[m.text] = ws:max()
+                        wsAvg[m.text] = ws:mean()
+                        wsStd[m.text] = ws:std()
                      end
-                     ws[ws:ne(ws)] = 0
 
-                     wsMin[m.text] = ws:min()
-                     wsMax[m.text] = ws:max()
-                     wsAvg[m.text] = ws:mean()
-                     wsStd[m.text] = ws:std()
-                  end
-
-                  -- Compute max L2 norw of neuron weights
-                  local maxL2 = 0
-                  for i2 = 1, ws:size(1) do
-                     local neuronL2 = ws[i2]:norm()
-                     if neuronL2 > maxL2 then
-                        maxL2 = neuronL2
+                     -- Compute max L2 norw of neuron weights
+                     local maxL2 = 0
+                     for i2 = 1, ws:size(1) do
+                        local neuronL2 = ws[i2]:norm()
+                        if neuronL2 > maxL2 then
+                           maxL2 = neuronL2
+                        end
                      end
-                  end
 
-                  ws = ws:abs()
-                  local ws_small = ws:lt(1e-5):sum()
-                  local ws_big = ws:gt(1e+2):sum()
+                     ws = ws:abs()
+                     local ws_small = ws:lt(1e-5):sum()
+                     local ws_big = ws:gt(1e+2):sum()
 
-                  -- Computing <gradients> statistics
-                  local gws = m.gradWeight:float()
-                  if opt.debug then
-                     -- Detecting and removing NaNs
-                     if gws:ne(gws):sum() > 0 then
-                        print(sys.COLORS.red .. m.text .. ' gradients has NaN/s')
-                        hasNaN = true
+                     -- Computing <gradients> statistics
+                     local gws = m.gradWeight:float()
+                     if opt.debug then
+                        -- Detecting and removing NaNs
+                        if gws:ne(gws):sum() > 0 then
+                           print(sys.COLORS.red .. m.text .. ' gradients has NaN/s')
+                           hasNaN = true
+                        end
+                        gws[gws:ne(gws)] = 0
+
+                        gwsMin[m.text] = gws:min()
+                        gwsMax[m.text] = gws:max()
+                        gwsAvg[m.text] = gws:mean()
+                        gwsStd[m.text] = gws:std()
                      end
-                     gws[gws:ne(gws)] = 0
 
-                     gwsMin[m.text] = gws:min()
-                     gwsMax[m.text] = gws:max()
-                     gwsAvg[m.text] = gws:mean()
-                     gwsStd[m.text] = gws:std()
+                     gws = gws:abs()
+                     local gws_small = gws:lt(1e-5):sum()
+                     local gws_big = gws:gt(1e+2):sum()
+
+                     -- Setting plotting style
+                     if opt.debug then style[m.text] = '-' end
+
+                     -- Printing some stats
+                     if opt.print_weight_stat then
+                        print(m.text)
+                        print(string.format('max L2 weights norm: %f', maxL2))
+                        print(string.format('#small weights: %d, big weights: %d', ws_small, ws_big))
+                        print(string.format('#small grads  : %d, big grads  : %d', gws_small, gws_big))
+                     end
+
                   end
-
-                  gws = gws:abs()
-                  local gws_small = gws:lt(1e-5):sum()
-                  local gws_big = gws:gt(1e+2):sum()
-
-                  -- Setting plotting style
-                  if opt.debug then style[m.text] = '-' end
-
-                  -- Printing some stats
-                  if opt.print_weight_stat then
-                     print(m.text)
-                     print(string.format('max L2 weights norm: %f', maxL2))
-                     print(string.format('#small weights: %d, big weights: %d', ws_small, ws_big))
-                     print(string.format('#small grads  : %d, big grads  : %d', gws_small, gws_big))
-                  end
-
                end
             end
-         end
 
-         -- Logging stats
-         if opt.debug then
-            logWsMin :add(wsMin )
-            logWsMax :add(wsMax )
-            logWsAvg :add(wsAvg )
-            logWsStd :add(wsStd )
-            logGwsMin:add(gwsMin)
-            logGwsMax:add(gwsMax)
-            logGwsAvg:add(gwsAvg)
-            logGwsStd:add(gwsStd)
-         end
-
-         -- Plotting
-         if plot and opt.debug then
-            -- Setting the style
-            logWsMin :style(style)
-            logWsMax :style(style)
-            logWsAvg :style(style)
-            logWsStd :style(style)
-            logGwsMin:style(style)
-            logGwsMax:style(style)
-            logGwsAvg:style(style)
-            logGwsStd:style(style)
+            -- Logging stats
+            if opt.debug then
+               logWsMin :add(wsMin )
+               logWsMax :add(wsMax )
+               logWsAvg :add(wsAvg )
+               logWsStd :add(wsStd )
+               logGwsMin:add(gwsMin)
+               logGwsMax:add(gwsMax)
+               logGwsAvg:add(gwsAvg)
+               logGwsStd:add(gwsStd)
+            end
 
             -- Plotting
-            logWsMin :plot()
-            logWsMax :plot()
-            logWsAvg :plot()
-            logWsStd :plot()
-            logGwsMin:plot()
-            logGwsMax:plot()
-            logGwsAvg:plot()
-            logGwsStd:plot()
+            if plot and opt.debug then
+               -- Setting the style
+               logWsMin :style(style)
+               logWsMax :style(style)
+               logWsAvg :style(style)
+               logWsStd :style(style)
+               logGwsMin:style(style)
+               logGwsMax:style(style)
+               logGwsAvg:style(style)
+               logGwsStd:style(style)
+
+               -- Plotting
+               logWsMin :plot()
+               logWsMax :plot()
+               logWsAvg :plot()
+               logWsStd :plot()
+               logGwsMin:plot()
+               logGwsMax:plot()
+               logGwsAvg:plot()
+               logGwsStd:plot()
+            end
+
          end
 
-      end
+         -- DEBUG
+         -- print ('train_confusion.totalValid: ' .. train_confusion.totalValid .. ', prevTrainAcc: ' .. prevTrainAcc)
+         if hasNaN then
+            print()
+            print(sys.COLORS.red .. '>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<')
+            print(sys.COLORS.red .. '>>> NaN detected! Retraining same epoch! <<<')
+            print(sys.COLORS.red .. '>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<')
+            w:copy(weightsBackup)
+            hasNaN = false
+         elseif train_confusion.totalValid < .5 * prevTrainAcc then
+            print()
+            print(sys.COLORS.red .. '>>>>>>>>>>>>>>><<<<<<<<<<<<<<<')
+            print(sys.COLORS.red .. '>>> Drop in training > 50% <<<')
+            print(sys.COLORS.red .. '>>>>>>>>>>>>>>><<<<<<<<<<<<<<<')
+            w:copy(weightsBackup)
+         else
+            print(sys.COLORS.green .. '==> Epoch trained successfully - backing up network\'s weights')
+            weightsBackup:copy(w)
+            prevTrainAcc = train_confusion.totalValid
+         end
 
-      -- DEBUG
-      -- print ('train_confusion.totalValid: ' .. train_confusion.totalValid .. ', prevTrainAcc: ' .. prevTrainAcc)
+         print('\n')
+         -------------------------------------------------------------------------------
 
-      if hasNaN then
-         print()
-         print(sys.COLORS.red .. '>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<')
-         print(sys.COLORS.red .. '>>> NaN detected! Retraining same epoch! <<<')
-         print(sys.COLORS.red .. '>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<')
-         w:copy(weightsBackup)
-         hasNaN = false
-         trainedSuccessfully = false
-      elseif train_confusion.totalValid < .5 * prevTrainAcc then
-         print()
-         print(sys.COLORS.red .. '>>>>>>>>>>>>>>><<<<<<<<<<<<<<<')
-         print(sys.COLORS.red .. '>>> Drop in training > 50% <<<')
-         print(sys.COLORS.red .. '>>>>>>>>>>>>>>><<<<<<<<<<<<<<<')
-         w:copy(weightsBackup)
-         trainedSuccessfully = false
+         -------------------------------------------------------------------------------
+         --test
+         sys.tic()
+         ce_test_error = 0
+         if verbose then print('==> Test ' .. epoch) end
+         test(testData, model, loss, dropout)
+         local time = sys.toc()
+         trainTestTime.test.perSample = trainTestTime.test.perSample + time / (opt.batchSize * trainData.nbatches())
+         trainTestTime.test.total     = trainTestTime.test.total + time
+
+         if verbose then
+            print(string.format("======> Time to test 1 iteration = %.2f sec", time))
+            print(string.format("======> Time to test 1 sample = %.2f ms", time / (opt.batchSize * testData.nbatches()) *  1000))
+            print(string.format("======> Test CE error: %.2f", ce_test_error))
+            print_confusion_matrix(test_confusion, '======> Test')
+            print()
+         end
+         -------------------------------------------------------------------------------
+
+         -- update loggers
+         train_confusion:updateValids()
+         test_confusion:updateValids()
+         logger:add{['% train accuracy'] = train_confusion.totalValid * 100, ['% test accuracy'] = test_confusion.totalValid * 100}
+         ce_logger:add{['ce train error'] = ce_train_error, ['ce test error'] = ce_test_error}
+
+         --plot
+         if plot then
+            logger:style{['% train accuracy'] = '-', ['% test accuracy'] = '-'}
+            logger:plot()
+            ce_logger:style{['ce train error'] = '-', ['ce test error'] = '-'}
+            ce_logger:plot()
+         end
+
+         --save model every 1 iterations
+         w, dE_dw = netToolkit.saveNet(model, opt.save_dir .. 'model-' .. epoch .. '.net', verbose)
+         -- log every 5 ierations
+         if (epoch % 5 == 0) then
+            statFile:write(string.format('\nTraining & testing time for %d epochs: %.2f minutes\n', epoch, (trainTestTime.train.total + trainTestTime.test.total)/60))
+            statFile:write(string.format('Average training time per sample: %.3f ms\n', trainTestTime.train.perSample * 200))
+            statFile:write(string.format('Average testing time per sample: %.3f ms\n', trainTestTime.test.perSample * 200))
+            statFile:write(string.format('Average loading time per batch: %.3f ms\n', trainTestTime.loading * 200)) -- 200 = 1000 / 5
+
+            trainTestTime.train.perSample = 0
+            trainTestTime.test.perSample = 0
+            trainTestTime.loading = 0
+
+            statFile:flush()
+         end
+         train_confusion:zero()
+         test_confusion:zero()
+
+         if (paths.filep('./.stop')) then
+            print ('Stop process')
+            continue = false
+            os.execute('rm .stop')
+         else
+            epoch = epoch + 1
+         end
+
       else
-         prevTrainAcc = train_confusion.totalValid
-         trainedSuccessfully = true
+         w:copy(weightsBackup)
+         print(sys.COLORS.red .. 'Process failed 5 times, retrain same epoch')
       end
-
-      print('\n')
-
-      -------------------------------------------------------------------------------
-
-      -------------------------------------------------------------------------------
-      --test
-      sys.tic()
-      ce_test_error = 0
-      if verbose then print('==> Test ' .. epoch) end
-      test(testData, model, loss, dropout)
-      local time = sys.toc()
-      trainTestTime.test.perSample = trainTestTime.test.perSample + time / (opt.batchSize * trainData.nbatches())
-      trainTestTime.test.total     = trainTestTime.test.total + time
-
-      if verbose then
-         print(string.format("======> Time to test 1 iteration = %.2f sec", time))
-         print(string.format("======> Time to test 1 sample = %.2f ms", time / (opt.batchSize * testData.nbatches()) *  1000))
-         print(string.format("======> Test CE error: %.2f", ce_test_error))
-         print_confusion_matrix(test_confusion, '======> Test')
-         print()
-      end
-      -------------------------------------------------------------------------------
-
-      -- update loggers
-      train_confusion:updateValids()
-      test_confusion:updateValids()
-      logger:add{['% train accuracy'] = train_confusion.totalValid * 100, ['% test accuracy'] = test_confusion.totalValid * 100}
-      ce_logger:add{['ce train error'] = ce_train_error, ['ce test error'] = ce_test_error}
-
-      --plot
-      if plot then
-         logger:style{['% train accuracy'] = '-', ['% test accuracy'] = '-'}
-         logger:plot()
-         ce_logger:style{['ce train error'] = '-', ['ce test error'] = '-'}
-         ce_logger:plot()
-      end
-
-      --save model every 1 iterations
-      w, dE_dw = netToolkit.saveNet(model, opt.save_dir .. 'model-' .. epoch .. '.net', verbose)
-      -- log every 5 ierations
-      if (epoch % 5 == 0) then
-         statFile:write(string.format('\nTraining & testing time for %d epochs: %.2f minutes\n', epoch, (trainTestTime.train.total + trainTestTime.test.total)/60))
-         statFile:write(string.format('Average training time per sample: %.3f ms\n', trainTestTime.train.perSample * 200))
-         statFile:write(string.format('Average testing time per sample: %.3f ms\n', trainTestTime.test.perSample * 200))
-         statFile:write(string.format('Average loading time per batch: %.3f ms\n', trainTestTime.loading * 200)) -- 200 = 1000 / 5
-
-         trainTestTime.train.perSample = 0
-         trainTestTime.test.perSample = 0
-         trainTestTime.loading = 0
-
-         statFile:flush()
-      end
-
-      train_confusion:zero()
-      test_confusion:zero()
-
-      if (consecutiveFailures == 5) then
-         print ('Process failed 5 times, retrain same epoch')
-      elseif (paths.filep('./.stop')) then
-         print ('Stop process')
-         continue = false
-         os.execute('rm .stop')
-      else
-         epoch = epoch + 1
-         print('Go to next epoch.')
-      end
-
    end
 
    -------------------------------------------------------------------------------
@@ -500,8 +499,8 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
    local train_acc = 0
 
    for i = 0, 4 do
-      test_acc = test_acc + test_accs[#test_accs - i]
-      train_acc = train_acc + train_accs[#train_accs - i]
+   test_acc = test_acc + test_accs[#test_accs - i]
+   train_acc = train_acc + train_accs[#train_accs - i]
    end
 
    test_acc = test_acc / 5
@@ -514,8 +513,8 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
    local train_err = 0
 
    for i = 0, 4 do
-      test_err = test_err + test_errs[#test_errs - i]
-      train_err = train_err + train_errs[#train_errs - i]
+   test_err = test_err + test_errs[#test_errs - i]
+   train_err = train_err + train_errs[#train_errs - i]
    end
 
    test_err = test_err / 5
@@ -547,7 +546,6 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
    -- Logging data on file
    for _,s in ipairs(str) do statFile:write(s) end
    statFile:close()
-
-   return train_acc, test_acc
    --]]
+   return train_acc, test_acc
 end
