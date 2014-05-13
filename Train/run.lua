@@ -45,7 +45,6 @@ Learning parameters
    --weightDecay       (default 0   )
    --momentum          (default 0   )
    --batchSize         (default 128 )
-   --niters            (default 100 )
 
 Saving parameters and temporary data
 Be carefull!!! you need to recompute temporary data when you change data options like width

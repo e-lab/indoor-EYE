@@ -15,7 +15,7 @@ function train(data, model, loss, dropout)
    local trainedSuccessfully = true
    local averageTimeLoading = 0
    nbFailures = 0
-   local consecutiveFailures = 0
+   consecutiveFailures = 0
 
    while t <= data.nbatches() do
 
@@ -82,12 +82,12 @@ function train(data, model, loss, dropout)
       end
 
       if (trainedSuccessfully) then
+         consecutiveFailures = 0
          t = t + 1
       elseif (consecutiveFailures < 5) then
          nbFailures = nbFailures + 1
          consecutiveFailures = consecutiveFailures + 1
       else
-         consecutiveFailures = 0
          t = data.nbatches() + 1
       end
    end
@@ -244,12 +244,18 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
    end
 
    local prevTrainAcc = 0
-   local trainedSuccessfully = true
+   local trainedSuccessfully = false
    local hasNaN
-   local weightsBackup = torch.Tensor(w:size())
+   local weightsBackup = torch.Tensor(w:size()):copy(w)
    nbFailures = 0
+   consecutiveFailures = 0
+   local continue = true
+   local epoch = 1
+   if opt.network ~= 'N/A' then
+      epoch = tonumber(string.match(opt.network, "%d+")) + 1
+   end
 
-   for i = 1, opt.niters do
+   while continue do
 
       if trainedSuccessfully then
          print(sys.COLORS.green .. '==> Epoch trained successfully - backing up network\'s weights')
@@ -261,7 +267,7 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
       local time = sys.clock()
 
       ce_train_error = 0
-      if verbose then print('==> Train ' .. i) end
+      if verbose then print('==> Train ' .. epoch) end
       train(trainData, model, loss, dropout)
 
       time = sys.clock() - time
@@ -275,8 +281,6 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
          print(string.format("======> Number of failures: %d", nbFailures))
 
          print_confusion_matrix(train_confusion, '======> Train')
-      else
-         xlua.progress(i, opt.niters)
       end
 
       --print weights and gradweights statistics
@@ -422,7 +426,7 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
       --test
       local time = sys.clock()
       ce_test_error = 0
-      if verbose then print('==> Test ' .. i) end
+      if verbose then print('==> Test ' .. epoch) end
       test(testData, model, loss, dropout)
       time = sys.clock() - time
       trainTestTime.test.perSample[i] = time / opt.batchSize
@@ -451,27 +455,42 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
          ce_logger:plot()
       end
 
-      --save model every 5 iterations
-      if i == 1 then
-         w, dE_dw = netToolkit.saveNet(model, opt.save_dir .. 'model-' .. i .. '.net', verbose)
-      end
-      if (i % 5 == 0) then
-         w, dE_dw = netToolkit.saveNet(model, opt.save_dir .. 'model-' .. i .. '.net', verbose)
-         statFile:write(string.format('\nTraining & testing time for %d epochs: %.2f minutes\n', i, (trainTestTime.train.total:sum() + trainTestTime.test.total:sum())/60))
-         statFile:write(string.format('Average training time per sample: %.3f ms\n', trainTestTime.train.perSample[{ {i-4,i} }]:mean() * 1000))
-         statFile:write(string.format('Average testing time per sample: %.3f ms\n', trainTestTime.test.perSample[{ {i-4,i} }]:mean() * 1000))
+      --save model every 1 iterations
+      w, dE_dw = netToolkit.saveNet(model, opt.save_dir .. 'model-' .. epoch .. '.net', verbose)
+      -- log every 5 ierations
+      if (epoch % 5 == 0) then
+         statFile:write(string.format('\nTraining & testing time for %d epochs: %.2f minutes\n', epoch, (trainTestTime.train.total + trainTestTime.test.total)/60))
+         statFile:write(string.format('Average training time per sample: %.3f ms\n', trainTestTime.train.perSample * 200))
+         statFile:write(string.format('Average testing time per sample: %.3f ms\n', trainTestTime.test.perSample * 200))
+         statFile:write(string.format('Average loading time per batch: %.3f ms\n', trainTestTime.loading * 200)) -- 200 = 1000 / 5
+
+         trainTestTime.train.perSample = 0
+         trainTestTime.test.perSample = 0
+         trainTestTime.loading = 0
+
          statFile:flush()
       end
 
       train_confusion:zero()
       test_confusion:zero()
 
+      if (consecutiveFailures == 5) then
+         print ('Process failed 5 times, retrain same epoch')
+      elseif (paths.filep('./.stop')) then
+         print ('Stop process')
+         continue = false
+         os.execute('rm .stop')
+      else
+         epoch = epoch + 1
+         print('Go to next epoch.')
+      end
+
    end
 
    -------------------------------------------------------------------------------
 
    --compute train and test accuracy. Average over last 5 iterations
-   local test_accs = logger.symbols['% test accuracy']
+   --[[local test_accs = logger.symbols['% test accuracy']
    local train_accs = logger.symbols['% train accuracy']
    local test_acc = 0
    local train_acc = 0
@@ -526,5 +545,5 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
    statFile:close()
 
    return train_acc, test_acc
-
+   --]]
 end
