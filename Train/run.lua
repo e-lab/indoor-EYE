@@ -196,7 +196,8 @@ function run(trainData, testData)
    if opt.network == 'N/A' then
       model, loss, dropout = get_model1() --(classifier.lua)
    else
-      model, loss = get_model2(opt.network)
+      print('Loading network from file: ' .. opt.network)
+      model, loss, dropout = get_model2(opt.network)
    end
    collectgarbage() -- get rid of craps from the GPU's RAM
 

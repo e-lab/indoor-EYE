@@ -189,7 +189,7 @@ end
 -- Iterative function definition for recovering the dropout table
 local function assignDropout(dropoutTable,module)
    if module.__typename == 'nn.Dropout' then
-      dropoutTable[#dropoutTable+1] = module
+      table.insert(dropoutTable, module)
    end
 end
 
@@ -208,7 +208,7 @@ function get_model2(networkFile)
    local model = netToolkit.loadNet(networkFile)
 
    -- Recover the dropout pointers
-   local dropout
+   local dropout = {}
    recoverDropoutTable(dropout,model)
 
    -- Loss: NLL
@@ -219,6 +219,6 @@ function get_model2(networkFile)
       loss:cuda()
    end
 
-   return model, loss
+   return model, loss, dropout
 
 end
