@@ -11,35 +11,50 @@ function train(data, model, loss, dropout)
    --train one iteration
 
    data.prepareBatch(1)
+   local t = 1
+   local trainedSuccessfully = true
+   local averageTimeLoading = 0
+   nbFailures = 0
+   local consecutiveFailures = 0
 
-   for t = 1, data.nbatches() do
+   while t <= data.nbatches() do
 
       xlua.progress(t, data.nbatches())
 
-      --      local t0 = sys.clock()
       --copy batch
-      ims, targets = data.copyBatch()
+      if (trainedSuccessfully) then
+         local timeB = sys.clock()
+         ims, targets = data.copyBatch()
 
-      --prepare next batch
-      if t < data.nbatches() then
-         data.prepareBatch(t + 1)
+         --prepare next batch
+         if t < data.nbatches() then
+            data.prepareBatch(t + 1)
+         end
+         averageTimeLoading = averageTimeLoading + (sys.clock() - timeB)
       end
-      --      print('load data: ' .. sys.clock() - t0)
 
       -- create closure to evaluate f(X) and df/dX
-      local eval_E = function(w)
+      local eval_E = function()
 
          dE_dw:zero()
 
          local y = model:forward(ims)
          local E = loss:forward(y, targets)
-         ce_train_error = ce_train_error + E * opt.batchSize
 
-         local dE_dy = loss:backward(y, targets)
-         model:backward(ims, dE_dy)
+         -- Catching NaNs on training cross-entropy
+         if (E ~= E) then
+            trainedSuccessfully = false
 
-         return E, dE_dw
+            local tmp = w:clone():fill(0)
+            return 0, tmp
+         else
+            trainedSuccessfully = true
+            ce_train_error = ce_train_error + E * opt.batchSize
+            local dE_dy = loss:backward(y, targets)
+            model:backward(ims, dE_dy)
 
+            return E, dE_dw
+         end
       end
 
       -- optimize on current mini-batch
@@ -66,6 +81,15 @@ function train(data, model, loss, dropout)
          end
       end
 
+      if (trainedSuccessfully) then
+         t = t + 1
+      elseif (consecutiveFailures < 5) then
+         nbFailures = nbFailures + 1
+         consecutiveFailures = consecutiveFailures + 1
+      else
+         consecutiveFailures = 0
+         t = data.nbatches() + 1
+      end
    end
 
    ce_train_error = ce_train_error / (data.nbatches() * opt.batchSize)
@@ -223,6 +247,7 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
    local trainedSuccessfully = true
    local hasNaN
    local weightsBackup = torch.Tensor(w:size())
+   nbFailures = 0
 
    for i = 1, opt.niters do
 
@@ -247,6 +272,7 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
          print(string.format("======> Time to learn 1 iteration = %.2f sec", time))
          print(string.format("======> Time to train 1 sample = %.2f ms", time / (opt.batchSize * trainData.nbatches()) * 1000))
          print(string.format("======> Train CE error: %.2f", ce_train_error))
+         print(string.format("======> Number of failures: %d", nbFailures))
 
          print_confusion_matrix(train_confusion, '======> Train')
       else
