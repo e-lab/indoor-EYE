@@ -93,6 +93,7 @@ function train(data, model, loss, dropout)
    end
 
    ce_train_error = ce_train_error / (data.nbatches() * opt.batchSize)
+   trainTestTime.loading = trainTestTime.loading + averageTimeLoading / data.nbatches()
 
 end
 
@@ -212,13 +213,17 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
    --init logger for train and test cross-entropy error
    local ce_logger = optim.Logger(opt.save_dir .. 'cross-entropy.log')
    --init train and test time
-   local trainTestTime = {}
-   trainTestTime.train = {}
-   trainTestTime.test  = {}
+
+   trainTestTime   = {}
+   trainTestTime.train   = {}
+   trainTestTime.test    = {}
+
    for _,t in pairs(trainTestTime) do
-      t.perSample = torch.Tensor(opt.niters)
-      t.total     = torch.zeros(opt.niters)
+      t.perSample = 0
+      t.total     = 0
    end
+
+   trainTestTime.loading = 0
 
    -- Initialising debugging loggers
    local logMin, logMax, logAvg, logStd
@@ -264,15 +269,14 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
       end
       -------------------------------------------------------------------------------
       --train
-      local time = sys.clock()
-
+      sys.tic()
       ce_train_error = 0
       if verbose then print('==> Train ' .. epoch) end
       train(trainData, model, loss, dropout)
+      local time = sys.toc()
 
-      time = sys.clock() - time
-      trainTestTime.train.perSample[i] = time / opt.batchSize
-      trainTestTime.train.total    [i] = time
+      trainTestTime.train.perSample = trainTestTime.train.perSample + time / (opt.batchSize * trainData.nbatches())
+      trainTestTime.train.total     = trainTestTime.train.total + time
 
       if verbose then
          print(string.format("======> Time to learn 1 iteration = %.2f sec", time))
@@ -356,81 +360,81 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
 
                end
             end
-            end
+         end
 
-            -- Logging stats
-            if opt.debug then
-               logWsMin :add(wsMin )
-               logWsMax :add(wsMax )
-               logWsAvg :add(wsAvg )
-               logWsStd :add(wsStd )
-               logGwsMin:add(gwsMin)
-               logGwsMax:add(gwsMax)
-               logGwsAvg:add(gwsAvg)
-               logGwsStd:add(gwsStd)
-            end
+         -- Logging stats
+         if opt.debug then
+            logWsMin :add(wsMin )
+            logWsMax :add(wsMax )
+            logWsAvg :add(wsAvg )
+            logWsStd :add(wsStd )
+            logGwsMin:add(gwsMin)
+            logGwsMax:add(gwsMax)
+            logGwsAvg:add(gwsAvg)
+            logGwsStd:add(gwsStd)
+         end
+
+         -- Plotting
+         if plot and opt.debug then
+            -- Setting the style
+            logWsMin :style(style)
+            logWsMax :style(style)
+            logWsAvg :style(style)
+            logWsStd :style(style)
+            logGwsMin:style(style)
+            logGwsMax:style(style)
+            logGwsAvg:style(style)
+            logGwsStd:style(style)
 
             -- Plotting
-            if plot and opt.debug then
-               -- Setting the style
-               logWsMin :style(style)
-               logWsMax :style(style)
-               logWsAvg :style(style)
-               logWsStd :style(style)
-               logGwsMin:style(style)
-               logGwsMax:style(style)
-               logGwsAvg:style(style)
-               logGwsStd:style(style)
-
-               -- Plotting
-               logWsMin :plot()
-               logWsMax :plot()
-               logWsAvg :plot()
-               logWsStd :plot()
-               logGwsMin:plot()
-               logGwsMax:plot()
-               logGwsAvg:plot()
-               logGwsStd:plot()
-            end
-
+            logWsMin :plot()
+            logWsMax :plot()
+            logWsAvg :plot()
+            logWsStd :plot()
+            logGwsMin:plot()
+            logGwsMax:plot()
+            logGwsAvg:plot()
+            logGwsStd:plot()
          end
 
-         -- DEBUG
-         -- print ('train_confusion.totalValid: ' .. train_confusion.totalValid .. ', prevTrainAcc: ' .. prevTrainAcc)
+      end
 
-         if hasNaN then
-            print()
-            print(sys.COLORS.red .. '>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<')
-            print(sys.COLORS.red .. '>>> NaN detected! Retraining same epoch! <<<')
-            print(sys.COLORS.red .. '>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<')
-            w:copy(weightsBackup)
-            hasNaN = false
-            trainedSuccessfully = false
-         elseif train_confusion.totalValid < .5 * prevTrainAcc then
-            print()
-            print(sys.COLORS.red .. '>>>>>>>>>>>>>>><<<<<<<<<<<<<<<')
-            print(sys.COLORS.red .. '>>> Drop in training > 50% <<<')
-            print(sys.COLORS.red .. '>>>>>>>>>>>>>>><<<<<<<<<<<<<<<')
-            w:copy(weightsBackup)
-            trainedSuccessfully = false
-         else
-            prevTrainAcc = train_confusion.totalValid
-            trainedSuccessfully = true
-         end
+      -- DEBUG
+      -- print ('train_confusion.totalValid: ' .. train_confusion.totalValid .. ', prevTrainAcc: ' .. prevTrainAcc)
 
-         print('\n')
+      if hasNaN then
+         print()
+         print(sys.COLORS.red .. '>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<')
+         print(sys.COLORS.red .. '>>> NaN detected! Retraining same epoch! <<<')
+         print(sys.COLORS.red .. '>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<')
+         w:copy(weightsBackup)
+         hasNaN = false
+         trainedSuccessfully = false
+      elseif train_confusion.totalValid < .5 * prevTrainAcc then
+         print()
+         print(sys.COLORS.red .. '>>>>>>>>>>>>>>><<<<<<<<<<<<<<<')
+         print(sys.COLORS.red .. '>>> Drop in training > 50% <<<')
+         print(sys.COLORS.red .. '>>>>>>>>>>>>>>><<<<<<<<<<<<<<<')
+         w:copy(weightsBackup)
+         trainedSuccessfully = false
+      else
+         prevTrainAcc = train_confusion.totalValid
+         trainedSuccessfully = true
+      end
+
+      print('\n')
 
       -------------------------------------------------------------------------------
 
       -------------------------------------------------------------------------------
       --test
-      local time = sys.clock()
+      sys.tic()
       ce_test_error = 0
       if verbose then print('==> Test ' .. epoch) end
       test(testData, model, loss, dropout)
-      time = sys.clock() - time
-      trainTestTime.test.perSample[i] = time / opt.batchSize
-      trainTestTime.test.total    [i] = time
+      local time = sys.toc()
+      trainTestTime.test.perSample = trainTestTime.test.perSample + time / (opt.batchSize * trainData.nbatches())
+      trainTestTime.test.total     = trainTestTime.test.total + time
 
       if verbose then
          print(string.format("======> Time to test 1 iteration = %.2f sec", time))
@@ -524,12 +528,12 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
    str[ 2] = string.format('==> Global statistics\n')
    str[ 3] = string.format('==> Timing\n')
    -- Total time
-   str[ 4] = string.format('    Total time for training the network: %.2f minutes\n', trainTestTime.train.total:sum()/60)
-   str[ 5] = string.format('    Total time for testing the network: %.2f minutes\n', trainTestTime.test.total:sum()/60)
-   str[ 6] = string.format('    Total time: %.2f minutes\n', (trainTestTime.train.total:sum() + trainTestTime.test.total:sum())/60)
+   str[ 4] = string.format('    Total time for training the network: %.2f minutes\n', trainTestTime.train.total/60)
+   str[ 5] = string.format('    Total time for testing the network: %.2f minutes\n', trainTestTime.test.total/60)
+   str[ 6] = string.format('    Total time: %.2f minutes\n', (trainTestTime.train.total + trainTestTime.test.total)/60)
    -- Per sample time
-   str[ 7] = string.format('    Average training time per sample: %.3f ms\n', trainTestTime.train.perSample:mean() * 1000)
-   str[ 8] = string.format('    Average testing time per sample: %.3f ms\n', trainTestTime.test.perSample:mean() * 1000)
+   str[ 7] = string.format('    Average training time per sample: %.3f ms\n', trainTestTime.train.total * 1000)
+   str[ 8] = string.format('    Average testing time per sample: %.3f ms\n', trainTestTime.test.perSample * 1000)
    -- Performance
    str[ 9] = string.format('==> Performance\n')
    str[10] = string.format('    Train accuracy = %.3f%%\n', train_acc)
