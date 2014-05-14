@@ -57,10 +57,8 @@ function load_data_mm(data_file, info_file)
    local offsets = dataset.offsets
    local sizes = dataset.sizes
    local labels = dataset.labels
-   local shuffle = torch.randperm(nsamples):type('torch.LongTensor')
+   -- local shuffle = torch.randperm(nsamples):type('torch.LongTensor')
    local file_number = dataset.file_number
-
-   --shuffle = torch.range(1, nsamples):type('torch.LongTensor')
 
    -- com is a shared state between the main thread and
    -- the batch thread, it holds two variables:
@@ -104,7 +102,7 @@ function load_data_mm(data_file, info_file)
       --      local global_mean = args[10]
       local local_mean = args[11]
       local local_std = args[12]
-      local shuffle_p = ffi.cast('unsigned long *', args[13])
+      --  local shuffle_p = ffi.cast('unsigned long *', args[13])
       local samples_p = ffi.cast('float *', args[14])
       local targets_p = ffi.cast('float *', args[15])
       local number_file  = args[23]
@@ -134,6 +132,9 @@ function load_data_mm(data_file, info_file)
       local samplesStorage = torch.FloatStorage(bs*c*h*w, tonumber(ffi.cast('intptr_t',samples_p)))
       local samples = torch.FloatTensor(samplesStorage):resize(bs,c,h,w)
 
+      local shuffle = torch.randperm(nsamples):type('torch.LongTensor')
+      local shuffle_p = ffi.cast('unsigned long *', ffi.cast('intptr_t', torch.data(shuffle)))
+
       -- process batches in a loop:
       while true do
          -- next batch?
@@ -147,6 +148,12 @@ function load_data_mm(data_file, info_file)
 
          -- zero batch
          samples:zero()
+
+         -- shuffle
+         if (idx == 1) then
+            shuffle = torch.randperm(nsamples):type('torch.LongTensor')
+            shuffle_p = ffi.cast('unsigned long *', ffi.cast('intptr_t', torch.data(shuffle)))
+         end
 
          -- process batch:
          for i = 0,bs-1 do
@@ -233,7 +240,8 @@ function load_data_mm(data_file, info_file)
    0,
    false,
    false,
-   tonumber(ffi.cast('intptr_t', torch.data(shuffle))),
+   -- tonumber(ffi.cast('intptr_t', torch.data(shuffle))),
+   nil,
    tonumber(ffi.cast('intptr_t', torch.data(samples))),
    tonumber(ffi.cast('intptr_t', torch.data(targets))),
    tonumber(ffi.cast('intptr_t', torch.data(jpegs_p))),
@@ -251,7 +259,7 @@ function load_data_mm(data_file, info_file)
    -- keep references alive (the GC collects them otherwise,
    -- because it doesn't know that the thread needs them...)
    dataset.keep = {
-      shuffle = shuffle,
+      -- shuffle = shuffle,
       samples = samples,
       targets = targets,
       com = com,
@@ -287,7 +295,6 @@ function load_data_mm(data_file, info_file)
       else
          return samples:clone(), targets:clone()
       end
-
    end
 
    -- augment dataset:
@@ -300,13 +307,13 @@ function load_data_mm(data_file, info_file)
 end
 
 function load_data(data_file, info_file, sfile, fact)
--- 1. Load and decompress imagenet data
-      --With opt.parts option store original images (3, 256, 256), else store resized images
+   -- 1. Load and decompress imagenet data
+   --With opt.parts option store original images (3, 256, 256), else store resized images
 
--- 2. Define prepareBatch and copyBatch functions
-      --prepareBatch: creates next batch for training or testing
-      --copyBatch:    returns prepared batch
--------------------------------------------------------------------------------
+   -- 2. Define prepareBatch and copyBatch functions
+   --prepareBatch: creates next batch for training or testing
+   --copyBatch:    returns prepared batch
+   -------------------------------------------------------------------------------
 
    local samples = torch.FloatTensor(opt.batchSize, opt.ncolors, opt.height, opt.width) --batch images
    local targets = torch.FloatTensor(opt.batchSize)                                     --batch labels
@@ -386,7 +393,7 @@ function load_data(data_file, info_file, sfile, fact)
 
          --scale image
          --if not opt.parts then
-            im = image.scale(im, sw, sh)
+         im = image.scale(im, sw, sh)
          --end
 
          --global normalization
@@ -413,7 +420,7 @@ function load_data(data_file, info_file, sfile, fact)
       end
 
    end
--------------------------------------------------------------------------------
+   -------------------------------------------------------------------------------
 
    local n = data.labels:size(1)
    local shuffle = torch.randperm(n):type('torch.LongTensor')
@@ -424,7 +431,7 @@ function load_data(data_file, info_file, sfile, fact)
    }
 
    local function prepareBatch(idx, istest)
-   -- prepare next batch
+      -- prepare next batch
 
       local bs = opt.batchSize
 
@@ -461,7 +468,7 @@ function load_data(data_file, info_file, sfile, fact)
    end
 
    local function copyBatch()
-   -- copy batch
+      -- copy batch
 
       if opt.cuda then
          return samplesCUDA, targetsCUDA
