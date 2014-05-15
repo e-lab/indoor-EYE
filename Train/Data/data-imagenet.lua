@@ -130,7 +130,6 @@ function load_data_mm(data_file, info_file)
       local shuffle_p = ffi.cast('unsigned long *', ffi.cast('intptr_t', torch.data(shuffle)))
 
       local mf = math.floor
-      local gmI = gm.Image()
 
       -- process batches in a loop:
       while true do
@@ -162,7 +161,7 @@ function load_data_mm(data_file, info_file)
             local size = tonumber(sizes_p[ii])
             local numFile = tonumber(file_n_p[ii])
             local jpegblob = jpegs[numFile] + offset
-            local sample = gmI:fromBlob(jpegblob,size):toTensor('float','RGB','DHW',true)
+            local sample = gm.Image():fromBlob(jpegblob,size):toTensor('float','RGB','DHW',true)
 
             -- distort sample
             if distorton and not test then
