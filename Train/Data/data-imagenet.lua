@@ -65,17 +65,11 @@ function load_data_mm(data_file, info_file)
    -- com[0]: the index of the batch to generate (if 0, then the thread is idle)
    -- com[1]: whether the batch is used for test or not (1 for test)
    local com = ffi.new('unsigned long[3]', {0,0})
-
-   local samplesCUDA={}
-   local targetsCUDA={}
-   if opt.cuda then
-      samplesCUDA = samples:clone():cuda()
-      targetsCUDA = targets:clone():cuda()
-   end
+   local nBatches = math.floor(nsamples / bs)
 
    -- size:
    local function nbatches()
-      return math.floor(nsamples / bs)
+      return nBatches
    end
 
    -- block:
@@ -135,6 +129,9 @@ function load_data_mm(data_file, info_file)
       local shuffle = torch.randperm(nsamples):type('torch.LongTensor')
       local shuffle_p = ffi.cast('unsigned long *', ffi.cast('intptr_t', torch.data(shuffle)))
 
+      local mf = math.floor
+      local gmI = gm.Image()
+
       -- process batches in a loop:
       while true do
          -- next batch?
@@ -151,8 +148,7 @@ function load_data_mm(data_file, info_file)
 
          -- shuffle
          if (idx == 1) then
-            shuffle = torch.randperm(nsamples):type('torch.LongTensor')
-            shuffle_p = ffi.cast('unsigned long *', ffi.cast('intptr_t', torch.data(shuffle)))
+            shuffle:copy(torch.randperm(nsamples):type('torch.LongTensor'))
          end
 
          -- process batch:
@@ -166,7 +162,7 @@ function load_data_mm(data_file, info_file)
             local size = tonumber(sizes_p[ii])
             local numFile = tonumber(file_n_p[ii])
             local jpegblob = jpegs[numFile] + offset
-            local sample = gm.Image():fromBlob(jpegblob,size):toTensor('float','RGB','DHW',true)
+            local sample = gmI:fromBlob(jpegblob,size):toTensor('float','RGB','DHW',true)
 
             -- distort sample
             if distorton and not test then
@@ -176,8 +172,8 @@ function load_data_mm(data_file, info_file)
 
             -- extract square patch
             local size = math.min(sample:size(2), sample:size(3))
-            local t = math.floor((sample:size(2) - size)/2 + 1)
-            local l = math.floor((sample:size(3) - size)/2 + 1)
+            local t = mf((sample:size(2) - size)/2 + 1)
+            local l = mf((sample:size(3) - size)/2 + 1)
             local b = t + size - 1
             local r = l + size - 1
             sample = sample[{ {},{t,b},{l,r} }]
@@ -186,12 +182,12 @@ function load_data_mm(data_file, info_file)
 
             -- extract sub-patch, with optional jitter:
             local size = math.min(sample:size(2), sample:size(3))
-            local t = math.floor((sample:size(2) - h)/2 + 1)
-            local l = math.floor((sample:size(3) - w)/2 + 1)
+            local t = mf((sample:size(2) - h)/2 + 1)
+            local l = mf((sample:size(3) - w)/2 + 1)
 
             if jitter > 0 and not test then
-               t = t + math.floor(torch.uniform(-jitter/2,jitter/2))
-               l = l + math.floor(torch.uniform(-jitter/2,jitter/2))
+               t = t + mf(torch.uniform(-jitter/2,jitter/2))
+               l = l + mf(torch.uniform(-jitter/2,jitter/2))
             end
 
             local b = t + h - 1
