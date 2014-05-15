@@ -45,6 +45,7 @@ function load_data_mm(data_file, info_file)
          dataset.data_p[file] = tonumber(ffi.cast('intptr_t', torch.data(dataset.data[file])))
       end
    else
+      dataset.data_p = torch.LongTensor(1)
       dataset.data[1] = torch.ByteStorage(data_file)
       dataset.data_p[1] = tonumber(ffi.cast('intptr_t', torch.data(dataset.data[1])))
    end
@@ -351,15 +352,28 @@ function load_data(data_file, info_file, sfile, fact)
       --load and decompress images
 
       print('=====> Loading info data from file: ' .. info_file)
-      local d = torch.load(info_file) --data from info_file: labels, image sizes and offsets
+      local dataset = torch.load(info_file) --data from info_file: labels, image sizes and offsets
+      local jpegs = {}
+      local jpegs_p = {}
 
-      local jpegs = torch.ByteStorage(data_file) --compressed images
-      local jpegs_p   = ffi.cast('unsigned char *', ffi.cast('intptr_t', torch.data(jpegs)))
-      local offsets_p = ffi.cast('unsigned long *', ffi.cast('intptr_t', torch.data(d.offsets)))
-      local sizes_p   = ffi.cast('unsigned long *', ffi.cast('intptr_t', torch.data(d.sizes)))
+      if (dataset.file_range) then
+         number_file = dataset.file_range:size(1)
+         for file = 1, number_file do
+            jpegs[file] = torch.ByteStorage(data_file .. '-file' .. file .. '.t7')
+            jpegs_p[file] = ffi.cast('unsigned char *', ffi.cast('intptr_t', torch.data(jpegs[file])))
+         end
+      else
+         jpegs[1] = torch.ByteStorage(data_file) --compressed images
+         jpegs_p[1] = ffi.cast('unsigned char *', ffi.cast('intptr_t', torch.data(jpegs[1])))
+         dataset.data_p[1] = tonumber(ffi.cast('intptr_t', torch.data(dataset.data[1])))
+      end
+
+      local offsets_p = ffi.cast('unsigned long *', ffi.cast('intptr_t', torch.data(dataset.offsets)))
+      local sizes_p   = ffi.cast('unsigned long *', ffi.cast('intptr_t', torch.data(dataset.sizes)))
+      local file_number_p = ffi.cast('unsigned int *', ffi.cast('intptr_t', torch.data(dataset.file_number)))
       local gm = require 'graphicsmagick'
 
-      local n = d.labels:size(1)
+      local n = dataset.labels:size(1)
       data.data = torch.FloatTensor(n, opt.ncolors, sh, sw) --stored images
       data.labels = torch.Tensor(n)
       data.imagenet_labels = torch.Tensor(n)
@@ -367,11 +381,14 @@ function load_data(data_file, info_file, sfile, fact)
       print('=====> Loading and decompressing jpegs from file: ' .. data_file)
       for i = 1, n do
 
-         xlua.progress(i, n)
+         if (i == 1 or i == n or i%50 == 0) then
+            xlua.progress(i, n)
+         end
 
          local offset = tonumber(offsets_p[i-1] - 1) --offset of compressed image
          local size = tonumber(sizes_p[i-1])         --size of compressed image in bytes
-         local jpegblob = jpegs_p + offset           --pointer to compressed image
+         local file = tonumber(file_number_p[i-1])
+         local jpegblob = jpegs_p[file] + offset           --pointer to compressed image
 
          --decompress image
          local im = gm.Image():fromBlob(jpegblob,size):toTensor('float','RGB','DHW',true)
@@ -391,12 +408,12 @@ function load_data(data_file, info_file, sfile, fact)
          end
 
          data.data[i] = im
-         data.labels[i] = d.labels[i] --subsample label id
-         data.imagenet_labels[i] = d.imagenet_labels[i] --original imagenet label
 
       end
 
-      data.classes = d.classes
+      data.classes = dataset.classes
+      data.labels = dataset.labels --subsample label id
+      data.imagenet_labels = dataset.imagenet_labels --original imagenet label
 
       if fact == 'save' then
          --save data
@@ -448,26 +465,16 @@ function load_data(data_file, info_file, sfile, fact)
 
       end
 
-      if opt.cuda then
-         samplesCUDA:copy(samples)
-         targetsCUDA:copy(targets)
-      end
-
    end
 
-   local function copyBatch()
-      -- copy batch
-
-      if opt.cuda then
-         return samplesCUDA, targetsCUDA
-      else
-         return samples:clone(), targets:clone()
-      end
-
+   local function copyBatch(ims, tgs)
+      ims:copy(samples)
+      tgs:copy(targets)
    end
 
+   local nBatches =  math.floor(data.data:size(1) / opt.batchSize)
    local function nbatches()
-      return math.floor(data.data:size(1) / opt.batchSize)
+      return nBatches
    end
 
    -- augment dataset:
