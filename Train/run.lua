@@ -9,7 +9,7 @@
 require 'torch'
 require 'nnx'
 require 'net-toolkit'
-require 'torchffi'
+ffi = require 'ffi'
 require 'pl'
 require 'usefulFunctions'
 require 'sys'

@@ -77,7 +77,7 @@ function load_data_mm(data_file, info_file)
       -- libs
       require 'sys'
       require 'torch'
-      require 'torchffi'
+      local ffi = require 'ffi'
       local gm = require 'graphicsmagick'
       require 'image'
 
