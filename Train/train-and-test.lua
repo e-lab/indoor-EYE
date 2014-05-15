@@ -17,6 +17,11 @@ if opt.type == 'cuda' then
    targets = targets:cuda()
 end
 
+<<<<<<< HEAD
+=======
+local weightsBackup = {}
+
+>>>>>>> 51473bd... BUG
 local trainTestTime   = {}
 
 function train(data, model, loss, dropout, confusion_matrix)
@@ -27,10 +32,13 @@ function train(data, model, loss, dropout, confusion_matrix)
    local trainedSuccessfully = true
    local nbFailures = 0
    local consecutiveFailures = 0
+   local olderBack = 1
+
+   weightsBackup[1]:copy(w)
+   weightsBackup[2]:copy(w)
 
    trainTestTime.tmpLoading = 0
    trainTestTime.tmpCuda = 0
-
 
    while t <= data.nbatches() do
 
@@ -38,6 +46,11 @@ function train(data, model, loss, dropout, confusion_matrix)
 
       --copy batch
       if (trainedSuccessfully) then
+         if (t%10 == 0) then
+            weightsBackup[olderBack]:copy(w)
+            olderBack = 3 - olderBack
+         end
+
          local timeB = sys.clock()
          ims, targets = data.copyBatch()
 
@@ -46,6 +59,13 @@ function train(data, model, loss, dropout, confusion_matrix)
             data.prepareBatch(t + 1)
          end
          trainTestTime.tmpLoading = trainTestTime.tmpLoading + (sys.clock() - timeB)
+      else
+         if (consecutiveFailures == 1) then
+            w:copy(weightsBackup[3 - olderBack])
+         else
+            w:copy(weightsBackup[olderBack])
+            weightsBackup[3 - olderBack]:copy(weightsBackup[olderBack])
+         end
       end
 
       -- create closure to evaluate f(X) and df/dX
@@ -105,9 +125,8 @@ function train(data, model, loss, dropout, confusion_matrix)
       else
          nbFailures = nbFailures + 1
          consecutiveFailures = consecutiveFailures + 1
-         if (consecutiveFailures < 5) then
-            print(sys.COLORS.red .. '\nFailed training on current batch. Go to next batch')
-            t = t + 1
+         if (consecutiveFailures < 3) then
+            print(sys.COLORS.red .. '\nFailed training on current batch. Try again with backup parameters.')
          else
             -- stop the loop --
             t = data.nbatches() + 1
@@ -115,14 +134,14 @@ function train(data, model, loss, dropout, confusion_matrix)
       end
    end
 
-   if (consecutiveFailures < 5) then
+   if (consecutiveFailures < 3) then
       ce_train_error = ce_train_error / (data.nbatches() * opt.batchSize)
       trainTestTime.tmpLoading = trainTestTime.tmpLoading / data.nbatches()
       trainTestTime.tmpCuda = trainTestTime.tmpCuda / data.nbatches()
 
       return true, nbFailures
    else
-      print(sys.COLORS.red .. '\nFailed training 5 time in a row')
+      print(sys.COLORS.red .. '\nFailed training 3 times in a row')
       print(sys.COLORS.red .. 'Total failures:' .. nbFailures)
 
       return false, nbFailures
@@ -387,6 +406,8 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
       logGwsAvg = optim.Logger(opt.save_dir .. 'logGwsAvg.log')
       logGwsStd = optim.Logger(opt.save_dir .. 'logGwsStd.log')
    end
+
+   weightsBackup = {w:clone(), w:clone()}
 
    local prevTrainAcc = 0
    local trainedSuccessfully = false
