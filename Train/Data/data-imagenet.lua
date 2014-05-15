@@ -72,9 +72,7 @@ function load_data_mm(data_file, info_file)
    local function nbatches()
       return nBatches
    end
-
-   -- block:
-   local block = function(...)
+   local block2 = function(...)
       -- libs
       require 'sys'
       require 'torch'
@@ -227,8 +225,163 @@ function load_data_mm(data_file, info_file)
       end
    end
 
+   -- block:
+   local block = function(...)
+      -- libs
+      require 'sys'
+      require 'torch'
+      require 'torchffi'
+      local gm = require 'graphicsmagick'
+      require 'image'
+
+      --local distort = require 'distort'
+
+      -- args:
+      local args = {...}
+      local nsamples = args[2]
+      local bs = args[3]
+      local c = args[4]
+      local h = args[5]
+      local w = args[6]
+      local distorton = args[7]
+      local jitter = args[8]
+      local receptive = args[9]
+      --      local global_mean = args[10]
+      local local_mean = args[11]
+      local local_std = args[12]
+      --  local shuffle_p = ffi.cast('unsigned long *', args[13])
+      local samples_p = ffi.cast('float *', args[14])
+      local targets_p = ffi.cast('float *', args[15])
+      local number_file  = args[23]
+      local tab_j_p = ffi.cast('unsigned long *', args[16])
+      local offsets_p = ffi.cast('unsigned long *', args[17])
+      local sizes_p   = ffi.cast('unsigned long *', args[18])
+      local labels_p  = ffi.cast('unsigned long *', args[19])
+      local com       = ffi.cast('unsigned long *', args[20])
+      local gm_p      = ffi.cast('float *', args[21])
+      local std_p     = ffi.cast('float *', args[22])
+      local file_n_p  = ffi.cast('unsigned int *', args[24])
+      local threadNumber = args[25]
+
+      local gmStorage = torch.FloatStorage(c, tonumber(ffi.cast('intptr_t', gm_p)))
+      local global_mean = torch.FloatTensor(gmStorage)
+      local stdStorage = torch.FloatStorage(c, tonumber(ffi.cast('intptr_t', std_p)))
+      local global_std = torch.FloatTensor(stdStorage)
+
+      local jpegs_pStorage = torch.LongStorage(number_file, tonumber(ffi.cast('intptr_t', tab_j_p)))
+      local jpegs_p = torch.LongTensor(jpegs_pStorage)
+
+      local jpegs = {}
+      for file = 1, number_file do
+         jpegs[file] = ffi.cast('unsigned char *', ffi.cast('long', jpegs_p[file]))
+      end
+
+      -- map samples batch to given pointer:
+      local samplesStorage = torch.FloatStorage(bs*c*h*w, tonumber(ffi.cast('intptr_t',samples_p)))
+      local samples = torch.FloatTensor(samplesStorage):resize(bs,c,h,w)
+
+      local shuffle = torch.randperm(nsamples):type('torch.LongTensor')
+      local shuffle_p = ffi.cast('unsigned long *', ffi.cast('intptr_t', torch.data(shuffle)))
+
+      local mf = math.floor
+      local gmI = gm.Image()
+
+      -- process batches in a loop:
+      while true do
+         -- next batch?
+         while tonumber(com[0]) == 0 do
+            sys.sleep(.005)
+         end
+         local idx = tonumber(com[0])
+
+         -- train or test?
+         local test = (com[1] == 1)
+
+         -- zero batch
+         samples:zero()
+
+         -- shuffle
+         if (idx == 1) then
+            shuffle:copy(torch.randperm(nsamples):type('torch.LongTensor'))
+         end
+
+         -- process batch:
+         for i = 0,bs-1 do
+            -- offsets:
+            local start = ((idx-1)*bs + i) % nsamples
+            local ii = shuffle_p[start] - 1
+
+            -- decode jpeg:
+            local offset = tonumber(offsets_p[ii] - 1)
+            local size = tonumber(sizes_p[ii])
+            local numFile = tonumber(file_n_p[ii])
+            local jpegblob = jpegs[numFile] + offset
+            local sample = gmI:fromBlob(jpegblob,size):toTensor('float','RGB','DHW',true)
+
+            -- distort sample
+            if distorton and not test then
+               -- rot + flip + scale:
+               sample = distort(sample, 0.25,.33,.5)
+            end
+
+            -- extract square patch
+            local size = math.min(sample:size(2), sample:size(3))
+            local t = mf((sample:size(2) - size)/2 + 1)
+            local l = mf((sample:size(3) - size)/2 + 1)
+            local b = t + size - 1
+            local r = l + size - 1
+            sample = sample[{ {},{t,b},{l,r} }]
+
+            sample = image.scale(sample, w + jitter, h + jitter)
+
+            -- extract sub-patch, with optional jitter:
+            local size = math.min(sample:size(2), sample:size(3))
+            local t = mf((sample:size(2) - h)/2 + 1)
+            local l = mf((sample:size(3) - w)/2 + 1)
+
+            if jitter > 0 and not test then
+               t = t + mf(torch.uniform(-jitter/2,jitter/2))
+               l = l + mf(torch.uniform(-jitter/2,jitter/2))
+            end
+
+            local b = t + h - 1
+            local r = l + w - 1
+            sample = sample[{ {},{t,b},{l,r} }]
+
+            -- save sample:
+            samples[i+1] = sample
+
+            -- normalize sample
+            --print(global_std)
+
+            for j = 1, c do
+               samples[i+1][j]:add(-global_mean[j])
+               samples[i+1][j]:div(global_std[j])
+            end
+            --a.a=a
+            --samples[i+1]:div(global_std)
+
+            if local_mean then
+               local mean = samples[i+1]:mean()
+               samples[i+1]:add(-mean)
+            end
+
+            if local_std then
+               local std = samples[i+1]:std()
+               samples[i+1]:div(std)
+            end
+
+            -- label:
+            targets_p[i] = labels_p[ii]
+         end
+
+         -- reset com (tells the main thread that the batch is ready)
+         com[0] = 0
+      end
+   end
+
    -- dispatch:
-   local thread = llthreads.new(string.dump(block),
+   local thread1 = llthreads.new(string.dump(block),
    nil,
    nsamples, bs, c, h, w,
    opt.distort,
@@ -251,8 +404,66 @@ function load_data_mm(data_file, info_file)
    number_file,
    tonumber(ffi.cast('intptr_t', torch.data(file_number)))
    )
-   thread:start(true)
+   thread1:start(true)
 
+   local dataset2 = torch.load(info_file)
+   dataset2.data = {}
+   if (dataset2.file_range) then
+      number_file = dataset2.file_range:size(1)
+      dataset2.data_p = torch.LongTensor(number_file)
+      for file = 1, number_file do
+         dataset2.data[file] = torch.ByteStorage(data_file .. '-file' .. file .. '.t7')
+         dataset2.data_p[file] = tonumber(ffi.cast('intptr_t', torch.data(dataset2.data[file])))
+      end
+   else
+      dataset2.data_p = torch.LongTensor(1)
+      dataset2.data[1] = torch.ByteStorage(data_file)
+      dataset2.data_p[1] = tonumber(ffi.cast('intptr_t', torch.data(dataset.data[1])))
+   end
+
+   local nsamples2 = dataset.labels:size(1)
+   local samples2 = torch.FloatTensor(bs, c, h, w)
+   local targets2 = torch.FloatTensor(bs)
+   local jpegs2 = dataset2.data
+   local jpegs_p2 = dataset2.data_p
+   local offsets2 = dataset2.offsets
+   local sizes2 = dataset2.sizes
+   local labels2 = dataset2.labels
+   -- local shuffle = torch.randperm(nsamples):type('torch.LongTensor')
+   local file_number2 = dataset2.file_number
+
+   local global_mean2 = global_mean:clone()
+   local global_std2 = global_std:clone()
+
+   -- com is a shared state between the main thread and
+   -- the batch thread, it holds two variables:
+   -- com[0]: the index of the batch to generate (if 0, then the thread is idle)
+   -- com[1]: whether the batch is used for test or not (1 for test)
+   local com2 = ffi.new('unsigned long[3]', {0,0})
+   local thread2 = llthreads.new(string.dump(block2),
+   nil,
+   nsamples, bs, c, h, w,
+   opt.distort,
+   opt.jitter,
+   opt.receptive,
+   0,
+   false,
+   false,
+   -- tonumber(ffi.cast('intptr_t', torch.data(shuffle))),
+   nil,
+   tonumber(ffi.cast('intptr_t', torch.data(samples2))),
+   tonumber(ffi.cast('intptr_t', torch.data(targets2))),
+   tonumber(ffi.cast('intptr_t', torch.data(jpegs_p2))),
+   tonumber(ffi.cast('intptr_t', torch.data(offsets2))),
+   tonumber(ffi.cast('intptr_t', torch.data(sizes2))),
+   tonumber(ffi.cast('intptr_t', torch.data(labels2))),
+   tonumber(ffi.cast('intptr_t', com2)),
+   tonumber(ffi.cast('intptr_t', torch.data(global_mean2))),
+   tonumber(ffi.cast('intptr_t', torch.data(global_std2))),
+   number_file,
+   tonumber(ffi.cast('intptr_t', torch.data(file_number2)))
+   )
+   thread2:start(true)
    -- keep references alive (the GC collects them otherwise,
    -- because it doesn't know that the thread needs them...)
    dataset.keep = {
@@ -266,24 +477,69 @@ function load_data_mm(data_file, info_file)
       labels = labels,
       file_number = file_number,
       jpegs_p = jpegs_p,
+      samples2 = samples2,
+      targets2 = targets2,
+      com2 = com2,
+      jpegs2 = jpegs2,
+      offsets2 = offsets2,
+      sizes2 = sizes2,
+      labels2 = labels2,
+      file_number2 = file_number2,
+      jpegs_p2 = jpegs_p2,
    }
+
+   local batchesThreads = torch.IntTensor(nBatches):fill(-1)
+   local threadBatch = torch.IntTensor(2):fill(-1)
+   local nextThread = 0
 
    -- prepare batch, asynchronously
    local function prepareBatch(idx, istest)
       -- request new batch!
-      com[1] = (istest and 1) or 0
-      com[0] = idx
+      if (batchesThreads[idx] == -1) then
+         if (threadBatch[nextThread+1] ~= -1) then
+            batchesThreads[threadBatch[nextThread+1]] = -1
+         end
+         batchesThreads[idx] = nextThread
+
+         if (nextThread == 0) then
+            com[1] = (istest and 1) or 0
+            com[0] = idx
+         else
+            com2[1] = (istest and 1) or 0
+            com2[0] = idx
+         end
+
+
+         threadBatch[nextThread+1] = idx
+         nextThread = (nextThread + 1)%2
+      end
    end
 
    -- copy batch to GPU
-   local function copyBatch(ims, tgs)
-      -- wait on batch ready
-      while tonumber(com[0]) > 0 do
-         sys.sleep(.005)
+   local function copyBatch(idx, ims, tgs)
+      if (batchesThreads[idx] == -1) then
+         error 'This batch has not been prepared'
       end
 
-      ims:copy(samples)
-      tgs:copy(targets)
+      if (batchesThreads[idx] == 0) then
+         -- wait on batch ready
+         while tonumber(com[0]) > 0 do
+            sys.sleep(.005)
+         end
+
+         ims:copy(samples)
+         tgs:copy(targets)
+      else
+         -- wait on batch ready
+         while tonumber(com2[0]) > 0 do
+            sys.sleep(.005)
+         end
+
+         ims:copy(samples2)
+         tgs:copy(targets2)
+      end
+
+      batchesThreads[idx] = -1
    end
 
    -- augment dataset:

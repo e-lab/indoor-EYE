@@ -26,6 +26,8 @@ function train(data, model, loss, dropout, confusion_matrix)
    --train one iteration
 
    data.prepareBatch(1)
+   data.prepareBatch(2)
+
    local t = 1
    local trainedSuccessfully = true
    local nbFailures = 0
@@ -50,11 +52,11 @@ function train(data, model, loss, dropout, confusion_matrix)
          end
 
          local timeB = sys.clock()
-         data.copyBatch(ims, targets)
+         data.copyBatch(t, ims, targets)
 
          --prepare next batch
-         if t < data.nbatches() then
-            data.prepareBatch(t + 1)
+         if t + 2 <= data.nbatches() then
+            data.prepareBatch(t + 2)
          end
          trainTestTime.tmpLoading = trainTestTime.tmpLoading + (sys.clock() - timeB)
       else
@@ -149,6 +151,7 @@ end
 function test(data, model, loss, dropout, confusion_matrix)
 
    data.prepareBatch(1, 1)
+   data.prepareBatch(2, 1)
    -- Switching off the dropout
    if opt.dropout > 0 or opt.inputDO > 0 then
       for _,d in ipairs(dropout) do
@@ -160,9 +163,9 @@ function test(data, model, loss, dropout, confusion_matrix)
 
       xlua.progress(t, data.nbatches())
 
-      data.copyBatch(ims, targets)
-      if (t <  data.nbatches()) then
-         data.prepareBatch(t + 1, 1)
+      data.copyBatch(t, ims, targets)
+      if (t + 2 <=  data.nbatches()) then
+         data.prepareBatch(t + 2, 1)
       end
 
       -- test sample
