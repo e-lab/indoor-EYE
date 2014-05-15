@@ -6,11 +6,8 @@
 function print_sizes(data, text, verbose)
 --print dimensions of data
 
-   data.prepareBatch(1)
-   local ims = data.copyBatch()
-
    if verbose then
-      print('==> ' .. text .. ' number of batches: ' .. data.nbatches() .. ', Batch size: ' .. ims:size(1) .. 'x' .. ims:size(2) .. 'x' .. ims:size(3) .. 'x' .. ims:size(4))
+      print('==> ' .. text .. ' number of batches: ' .. data.nbatches() .. ', Batch size: ' .. opt.batchSize .. 'x 3 x' .. opt.height .. 'x' .. opt.width)
    end
 
 end

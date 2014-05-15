@@ -12,17 +12,15 @@ local ims = torch.Tensor(opt.batchSize, 3, opt.height, opt.width)
 --allocate memory for batch of labels
 local targets = torch.Tensor(opt.batchSize)
 
-if opt.type == 'cuda' then
+if opt.cuda then
    ims = ims:cuda()
    targets = targets:cuda()
 end
 
-<<<<<<< HEAD
-=======
 local weightsBackup = {}
 
->>>>>>> 51473bd... BUG
 local trainTestTime   = {}
+local w, dE_dw
 
 function train(data, model, loss, dropout, confusion_matrix)
    --train one iteration
@@ -52,7 +50,7 @@ function train(data, model, loss, dropout, confusion_matrix)
          end
 
          local timeB = sys.clock()
-         ims, targets = data.copyBatch()
+         data.copyBatch(ims, targets)
 
          --prepare next batch
          if t < data.nbatches() then
@@ -150,6 +148,7 @@ end
 
 function test(data, model, loss, dropout, confusion_matrix)
 
+   data.prepareBatch(1, 1)
    -- Switching off the dropout
    if opt.dropout > 0 or opt.inputDO > 0 then
       for _,d in ipairs(dropout) do
@@ -160,8 +159,11 @@ function test(data, model, loss, dropout, confusion_matrix)
    for t = 1, data.nbatches() do
 
       xlua.progress(t, data.nbatches())
-      data.prepareBatch(t)
-      ims, targets = data.copyBatch()
+
+      data.copyBatch(ims, targets)
+      if (t <  data.nbatches()) then
+         data.prepareBatch(t + 1, 1)
+      end
 
       -- test sample
       local preds = model:forward(ims)

@@ -279,22 +279,14 @@ function load_data_mm(data_file, info_file)
    end
 
    -- copy batch to GPU
-   local function copyBatch()
+   local function copyBatch(ims, tgs)
       -- wait on batch ready
       while tonumber(com[0]) > 0 do
          sys.sleep(.005)
       end
 
-      if opt.cuda then
-
-         -- move to CUDA
-         samplesCUDA:copy(samples)
-         targetsCUDA:copy(targets)
-         return samplesCUDA, targetsCUDA
-
-      else
-         return samples:clone(), targets:clone()
-      end
+      ims:copy(samples)
+      tgs:copy(targets)
    end
 
    -- augment dataset:
