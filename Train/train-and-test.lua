@@ -540,6 +540,11 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
          -- (1) reset weights
          w:copy(weightsBackup)
       end
+
+      if (paths.filep('./.stop')) then
+         os.execute 'rm .stop'
+         continue = false
+      end
    end
 
    -------------------------------------------------------------------------------
