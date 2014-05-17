@@ -32,8 +32,11 @@ function train(data, model, loss, dropout, confusion_matrix)
    local consecutiveFailures = 0
    local olderBack = 1
 
+   ce_train_error = 0
+
    weightsBackup[1]:copy(w)
    weightsBackup[2]:copy(w)
+   local ceBackup = {0, 0}
 
    trainTestTime.tmpLoading = 0
    trainTestTime.tmpCuda = 0
@@ -46,6 +49,7 @@ function train(data, model, loss, dropout, confusion_matrix)
       if (trainedSuccessfully) then
          if (t%10 == 0) then
             weightsBackup[olderBack]:copy(w)
+            ceBackup[olderBack] = ce_train_error
             olderBack = 3 - olderBack
          end
 
@@ -60,9 +64,12 @@ function train(data, model, loss, dropout, confusion_matrix)
       else
          if (consecutiveFailures == 1) then
             w:copy(weightsBackup[3 - olderBack])
+            ce_train_error = ceBackup[3 - olderBack]
          else
             w:copy(weightsBackup[olderBack])
+            ce_train_error = ceBackup[olderBack]
             weightsBackup[3 - olderBack]:copy(weightsBackup[olderBack])
+            ceBackup[3 - olderBack] = ceBackup[olderBack]
          end
       end
 
@@ -75,18 +82,18 @@ function train(data, model, loss, dropout, confusion_matrix)
          local E = loss:forward(y, targets)
 
          -- Catching NaNs on training cross-entropy
-         if (E ~= E) then
-            trainedSuccessfully = false
-
-            local tmp = w:clone():fill(0)
-            return 0, tmp
-         else
+         if (math.abs(E) < 1000000) then -- catch NaN and Big numbers
             trainedSuccessfully = true
             ce_train_error = ce_train_error + E * opt.batchSize
             local dE_dy = loss:backward(y, targets)
             model:backward(ims, dE_dy)
 
             return E, dE_dw
+         else
+            trainedSuccessfully = false
+
+            local tmp = w:clone():fill(0)
+            return 0, tmp
          end
       end
 
@@ -94,37 +101,36 @@ function train(data, model, loss, dropout, confusion_matrix)
       collectgarbage()
       local timer = torch.Timer()
       optim.sgd(eval_E, w, optimState)
-
-
-      -- Switching off the dropout
-      if opt.dropout > 0 or opt.inputDO > 0 then
-         for _,d in ipairs(dropout) do
-            d.train = false
-         end
-      end
-
-      -- Update confusion matrix
-      local y = model:forward(ims)
-      for i = 1, opt.batchSize do
-         confusion_matrix:add(y[i], targets[i])
-      end
-
-      -- Switching back on the dropout
-      if opt.dropout > 0 or opt.inputDO > 0 then
-         for _,d in ipairs(dropout) do
-            d.train = true
-         end
-      end
       trainTestTime.tmpCuda = trainTestTime.tmpCuda + timer:time().real
 
       if (trainedSuccessfully) then
+         -- Switching off the dropout
+         if opt.dropout > 0 or opt.inputDO > 0 then
+            for _,d in ipairs(dropout) do
+               d.train = false
+            end
+         end
+
+         -- Update confusion matrix
+         local y = model:forward(ims)
+         for i = 1, opt.batchSize do
+            confusion_matrix:add(y[i], targets[i])
+         end
+
+         -- Switching back on the dropout
+         if opt.dropout > 0 or opt.inputDO > 0 then
+            for _,d in ipairs(dropout) do
+               d.train = true
+            end
+         end
+
          consecutiveFailures = 0
          t = t + 1
       else
          nbFailures = nbFailures + 1
          consecutiveFailures = consecutiveFailures + 1
          if (consecutiveFailures < 3) then
-            print(sys.COLORS.red .. '\nFailed training on current batch. Try again with backup parameters.')
+            print(sys.COLORS.red .. '\nFailed training on current batch: ' .. ce_train_error .. '. Try again with backup parameters.')
          else
             -- stop the loop --
             t = data.nbatches() + 1
@@ -411,7 +417,7 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
 
    weightsBackup = {w:clone(), w:clone()}
 
-   local prevTrainAcc = 0
+   local prevTrainError = math.huge
    local trainedSuccessfully = false
    local hasNaN
    local weightsBackup = w:clone()
@@ -429,7 +435,6 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
       -------------------------------------------------------------------------------
       --train
       sys.tic()
-      ce_train_error = 0
       if verbose then print('==> Train ' .. epoch) end
       trainedSuccessfully, nbFailures = train(trainData, model, loss, dropout, train_confusion)
       local time = sys.toc()
@@ -442,12 +447,13 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
       end
 
       -- (2) training accuraccy
-      if (trainedSuccessfully and train_confusion.totalValid < .5 * prevTrainAcc) then
+      if (trainedSuccessfully and not (ce_train_error <  2 * prevTrainError + 5)) then
          print()
          print(sys.COLORS.red .. '>>>>>>>>>>>>>>><<<<<<<<<<<<<<<')
          print(sys.COLORS.red .. '>>> Drop in training > 50% <<<')
          print(sys.COLORS.red .. '>>>>>>>>>>>>>>><<<<<<<<<<<<<<<')
          print('\n')
+         prevTrainError = ce_train_error
          trainedSuccessfully = false
       end
 
