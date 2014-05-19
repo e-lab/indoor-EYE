@@ -32,6 +32,7 @@ function train(data, model, loss, dropout, confusion_matrix)
    local nbFailures = 0
    local consecutiveFailures = 0
    local olderBack = 1
+   local last_ce_train_error = 0
 
    ce_train_error = 0
 
@@ -40,7 +41,6 @@ function train(data, model, loss, dropout, confusion_matrix)
    local ceBackup = {0, 0}
    confBackup[1]:zero()
    confBackup[2]:zero()
-
 
    trainTestTime.tmpLoading = 0
    trainTestTime.tmpCuda = 0
@@ -90,19 +90,11 @@ function train(data, model, loss, dropout, confusion_matrix)
          local E = loss:forward(y, targets)
 
          -- Catching NaNs on training cross-entropy
-         if (math.abs(E) < 1000000) then -- catch NaN and Big numbers
-            trainedSuccessfully = true
-            ce_train_error = ce_train_error + E * opt.batchSize
-            local dE_dy = loss:backward(y, targets)
-            model:backward(ims, dE_dy)
+         ce_train_error = ce_train_error + E
+         local dE_dy = loss:backward(y, targets)
+         model:backward(ims, dE_dy)
 
-            return E, dE_dw
-         else
-            trainedSuccessfully = false
-
-            local tmp = w:clone():fill(0)
-            return 0, tmp
-         end
+         return E, dE_dw
       end
 
       -- optimize on current mini-batch
@@ -111,7 +103,8 @@ function train(data, model, loss, dropout, confusion_matrix)
       optim.sgd(eval_E, w, optimState)
       trainTestTime.tmpCuda = trainTestTime.tmpCuda + timer:time().real
 
-      if (trainedSuccessfully) then
+      if (ce_train_error < last_ce_train_error + 10) then
+         trainedSuccessfully = true
          -- Switching off the dropout
          if opt.dropout > 0 or opt.inputDO > 0 then
             for _,d in ipairs(dropout) do
@@ -132,9 +125,11 @@ function train(data, model, loss, dropout, confusion_matrix)
             end
          end
 
+         last_ce_train_error = ce_train_error
          consecutiveFailures = 0
          t = t + 1
       else
+         trainedSuccessfully = false
          nbFailures = nbFailures + 1
          consecutiveFailures = consecutiveFailures + 1
          if (consecutiveFailures < 3) then
@@ -148,7 +143,7 @@ function train(data, model, loss, dropout, confusion_matrix)
    end
 
    if (consecutiveFailures < 3) then
-      ce_train_error = ce_train_error / (data.nbatches() * opt.batchSize)
+      ce_train_error = ce_train_error / data.nbatches()
       trainTestTime.tmpLoading = trainTestTime.tmpLoading / data.nbatches()
       trainTestTime.tmpCuda = trainTestTime.tmpCuda / data.nbatches()
 
@@ -441,6 +436,7 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
    if opt.network ~= 'N/A' then
       epochInit = tonumber(string.match(opt.network, "%d+"))
       epoch = epochInit + 1
+   end
 
    while continue do
       -------------------------------------------------------------------------------
@@ -575,8 +571,8 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
    local train_acc = 0
 
    for i = 0, 4 do
-   test_acc = test_acc + test_accs[#test_accs - i]
-   train_acc = train_acc + train_accs[#train_accs - i]
+      test_acc = test_acc + test_accs[#test_accs - i]
+      train_acc = train_acc + train_accs[#train_accs - i]
    end
 
    test_acc = test_acc / 5
@@ -589,8 +585,8 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
    local train_err = 0
 
    for i = 0, 4 do
-   test_err = test_err + test_errs[#test_errs - i]
-   train_err = train_err + train_errs[#train_errs - i]
+      test_err = test_err + test_errs[#test_errs - i]
+      train_err = train_err + train_errs[#train_errs - i]
    end
 
    test_err = test_err / 5
