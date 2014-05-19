@@ -453,22 +453,16 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
          trainedSuccessfully = checkWeight(model, logMin, logMax, logAvg, logStd, logGwsMin, logGwsMax, logGwsAvg, logGwsStd)
       end
 
-      -- (3) testing
-      sys.tic()
-      ce_test_error = 0
-      if verbose then print('==> Test ' .. epoch) end
-      test(testData, model, loss, dropout, test_confusion)
-      local timeTest = sys.toc()
+      if (trainedSuccessfully) then
+         -- (3) testing
+         sys.tic()
+         ce_test_error = 0
+         if verbose then print('==> Test ' .. epoch) end
+         test(testData, model, loss, dropout, test_confusion)
+         local timeTest = sys.toc()
+         test_confusion:updateValids()
 
-      -- (2) training accuraccy
-      if (trainedSuccessfully and not (test_confusion.totalValid >  0.5 * prevTestAcc)) then
-         print()
-         print(sys.COLORS.red .. '>>>>>>>>>>>>>>><<<<<<<<<<<<<<<')
-         print(sys.COLORS.red .. '>>> Drop in training > 50% <<<')
-         print(sys.COLORS.red .. '>>>>>>>>>>>>>>><<<<<<<<<<<<<<<')
-         print('\n')
-         prevTestAcc = test_confusion.totalValid
-         trainedSuccessfully = false
+         trainedSuccessfully = test_confusion.totalValid >  0.5 * prevTestAcc
       end
 
       -- if every thing is good the procced
@@ -500,7 +494,6 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
             print()
          end
 
-
          -- (2.2) testing statistics
          trainTestTime.test.perSample = trainTestTime.test.perSample + time / (opt.batchSize * trainData.nbatches())
          trainTestTime.test.total     = trainTestTime.test.total + time
@@ -515,7 +508,6 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
 
          -- (5) update loggers
          train_confusion:updateValids()
-         test_confusion:updateValids()
          logger:add{['% train accuracy'] = train_confusion.totalValid * 100, ['% test accuracy'] = test_confusion.totalValid * 100}
          ce_logger:add{['ce train error'] = ce_train_error, ['ce test error'] = ce_test_error}
 
@@ -546,12 +538,20 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
 
             statFile:flush()
          end
+
+         -- Save last accuracy before zeroing
+         prevTestAcc = test_confusion.totalValid
          train_confusion:zero()
          test_confusion:zero()
 
          -- (7) set up for the next epoch
          epoch = epoch + 1
       else -- (trainsucessfully) -- start on same epoch
+         print()
+         print(sys.COLORS.red .. '>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<')
+         print(sys.COLORS.red .. '>>>> Drop in testing > 50% <<<<')
+         print(sys.COLORS.red .. '>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<')
+         print(test_confusion.totalValid ,'\n')
          -- (1) reset weights
          w:copy(weightsBackup)
       end
