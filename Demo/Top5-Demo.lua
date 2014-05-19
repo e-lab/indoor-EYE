@@ -29,13 +29,13 @@ local title = [[
 -- Options ---------------------------------------------------------------------
 opt = lapp(title .. [[
 --temp_dir       (default '../Train/temp-data/') Location of test dataset
---camera                                         Switch to camera input
 --subsample_name (default 'indoor51')            Name of imagenet subsample. Possible options ('class51', 'elab')
---model          (default '07C/model-90.net'   ) Model's name
+--model          (default 'model-90.net'   )     Model's name
 --histogram                                      Shows prediction's histogram
 --imageSide      (default 128                  ) Image's side length
---fps            (default 2                    ) Frames per second (camera setting)
---hdcam                                          Use of HD mac camera for demos
+--camera                                         Switch to camera input
+--camRes         (default VGA)                   Camera resolution ([VGA]|FWVGA|HD|FHD)
+--fps            (default 20                   ) Frames per second (camera setting)
 ]])
 io.write(title)
 torch.setdefaulttensortype('torch.FloatTensor')
@@ -44,6 +44,7 @@ torch.setdefaulttensortype('torch.FloatTensor')
 -- Loading net
 netPath = opt.model
 -- netPath = '/home/atcold/work/indoor-EYE-results/' .. opt.model
+-- netPath = '/Users/atcold/Work/Vision/DeconvNet/' .. opt.model
 net = torch.load(netPath)
 
 -- Iterative function definition for disabling the dropouts
@@ -67,9 +68,15 @@ findAndDisableDropouts(net)
 
 -- Loading input
 local stat
+local resolutions = {
+   VGA   = {w =  640, h =  480},
+   FWVGA = {w =  854, h =  480},
+   HD    = {w = 1280, h =  720},
+   FHD   = {w = 1920, h = 1080},
+}
+
 if opt.camera then
-   if not opt.hdcam then cam = image.Camera{}
-   else cam = image.Camera{width = 640, height = 360} end
+   cam = image.Camera{width = resolutions[opt.camRes].w, height = resolutions[opt.camRes].h}
    local statPath = string.gsub(netPath,'%a+%-%d+%.net','preproc.t7')
    stat = torch.load(statPath)
 else
@@ -81,19 +88,39 @@ end
 dofile('../Train/Data/indoor-classes.lua')
 
 -- Build window (not final solution)
-win = qtwidget.newwindow(4*opt.imageSide,4*opt.imageSide,'TeraDeep Image Parser')
+if opt.camera then
+   win = qtwidget.newwindow(resolutions[opt.camRes].w,resolutions[opt.camRes].h,'TeraDeep Image Parser')
+else
+   win = qtwidget.newwindow(4*opt.imageSide,4*opt.imageSide,'TeraDeep Image Parser')
+end
 
 -- Displaying routine
+eye = resolutions[opt.camRes].h * 3 / 4
+x1  = resolutions[opt.camRes].w / 2 - eye / 2
+y1  = resolutions[opt.camRes].h / 2 - eye / 2
+x2  = resolutions[opt.camRes].w / 2 + eye / 2
+y2  = resolutions[opt.camRes].h / 2 + eye / 2
+kSize = 21
+k   = torch.Tensor(kSize,kSize):fill(1/kSize^2)
+z   = opt.camera and eye / 128 / 4 or 1 -- zoom
+
+-- Set font size to a visible dimension
+win:setfontsize(20*z)
+
 function show(idx)
-   local input, l, c, leg
+   local input, l, c, leg, crop
    if opt.camera then
-      input = image.scale(cam:forward(),'^' .. opt.imageSide)
+      frame = cam:forward()
+      crop = image.crop(frame, x1, y1, x2, y2)
+      input = image.scale(crop,'^' .. opt.imageSide)
       local w = (#input)[3]
       input = image.crop(input,w/2-opt.imageSide/2,0,w/2+opt.imageSide/2,opt.imageSide)
       for c = 1,3 do
          input[c]:add(-stat.mean[c])
          input[c]:div( stat.std [c])
       end
+      frame = image.convolve(frame,k,'same')
+      frame[{ {},{y1,y2-1},{x1,x2-1} }] = crop
    else
       l = testData.labels[idx] -- true label nb
       c = classes[l][1] -- true label str
@@ -101,13 +128,15 @@ function show(idx)
       if opt.histogram then gnuplot.title(leg) end
       win.widget:setWindowTitle('True label: ' .. c)
       input = testData.data[idx]
+      frame = torch.Tensor(3,4*opt.imageSide,4*opt.imageSide)
+      image.scale(frame, input)
    end
 
    -- Computing prediction
    local output = net:forward(input)
 
    -- Displaying current frame
-   image.display{image = input, zoom = 4, win = win}
+   image.display{image = frame, win = win}
 
    -- Show histogram, if required
    if opt.histogram then
@@ -117,27 +146,46 @@ function show(idx)
    end
 
    -- Drawing semi-transparent rectagle on top left
-   win:rectangle(0,0,190,140)
-   win:setcolor(0,0,0,.3)
+   if opt.camera then
+      win:rectangle(0,0,x1,resolutions[opt.camRes].h)
+      win:rectangle(x2,0,resolutions[opt.camRes].w,resolutions[opt.camRes].h)
+      win:rectangle(x1,0,eye,y1)
+      win:rectangle(x1,y2,eye,resolutions[opt.camRes].h)
+   else
+      win:rectangle(0,0,190,140)
+   end
+   win:setcolor(0,0,0,.4)
    win:fill()
 
-   -- Set font size to a visible dimension
-   win:setfontsize(20)
+   -- If cam, draw eye and write some text
+   if opt.camera then
+      --[[win:rectangle(x1,y1,eye,eye)
+      win:setcolor('black')
+      win:stroke()--]]
+      win:moveto(30*z,45*z)
+      win:setcolor(.1,.7,1)
+      win:show("Top 5 predictions' probability")
+   end
 
    -- Computing index of decreasing value ordered prob.
    local sortedOutput, guess = output:sort(true)
 
    -- Printing first 5 most likely predictions
+   c = opt.camera and z or 0
    for i = 1,5 do
-      win:rectangle(10,4+25 * i,math.exp(sortedOutput[i])*(190-20),2)
-      win:moveto(10,25 * i)
+      p = math.exp(sortedOutput[i])
+      win:rectangle(10*z+20*c,60*c+(4+25 * i)*z,p*(190-20)*z,2*z)
+      win:moveto(10*z+20*c,60*c+25 * i*z)
       if guess[i] == l and not opt.camera then
          win:setcolor('red')
+      elseif p > .5 then
+         win:setcolor(.3,.8,.3)
       else
          win:setcolor('white')
       end
       win:fill()
-      win:show(classes[guess[i]][1])
+      predictionStr = string.format('%s (%.2f%%)', classes[guess[i]][1], p*100)
+      win:show(predictionStr)
    end
 end
 
@@ -152,7 +200,5 @@ while win:valid() do
    i = i+1
    if not opt.camera then
       io.read()
-   else
-      sys.sleep(1/opt.fps)
    end
 end
