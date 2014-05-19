@@ -18,6 +18,7 @@ if opt.cuda then
 end
 
 local weightsBackup = {}
+local confBackup = {}
 
 local trainTestTime   = {}
 local w, dE_dw
@@ -37,6 +38,9 @@ function train(data, model, loss, dropout, confusion_matrix)
    weightsBackup[1]:copy(w)
    weightsBackup[2]:copy(w)
    local ceBackup = {0, 0}
+   confBackup[1]:zero()
+   confBackup[2]:zero()
+
 
    trainTestTime.tmpLoading = 0
    trainTestTime.tmpCuda = 0
@@ -50,6 +54,7 @@ function train(data, model, loss, dropout, confusion_matrix)
          if (t%10 == 0) then
             weightsBackup[olderBack]:copy(w)
             ceBackup[olderBack] = ce_train_error
+            confBackup[olderBack].mat:copy(confusion_matrix.mat)
             olderBack = 3 - olderBack
          end
 
@@ -64,12 +69,15 @@ function train(data, model, loss, dropout, confusion_matrix)
       else
          if (consecutiveFailures == 1) then
             w:copy(weightsBackup[3 - olderBack])
+            confusion_matrix.mat:copy(confBackup[3 - olderBack].mat)
             ce_train_error = ceBackup[3 - olderBack]
          else
             w:copy(weightsBackup[olderBack])
             ce_train_error = ceBackup[olderBack]
+            confusion_matrix.mat:copy(confBackup[olderBack].mat)
             weightsBackup[3 - olderBack]:copy(weightsBackup[olderBack])
             ceBackup[3 - olderBack] = ceBackup[olderBack]
+            confBackup[3 - olderBack].mat:copy(confBackup[olderBack].mat)
          end
       end
 
@@ -130,7 +138,8 @@ function train(data, model, loss, dropout, confusion_matrix)
          nbFailures = nbFailures + 1
          consecutiveFailures = consecutiveFailures + 1
          if (consecutiveFailures < 3) then
-            print(sys.COLORS.red .. '\nFailed training on current batch: ' .. ce_train_error .. '. Try again with backup parameters.')
+            print(sys.COLORS.red .. '\nWARNING:')
+            print(sys.COLORS.red .. 'Failed training on current batch: ' .. ce_train_error .. '. Try again with backup parameters.')
          else
             -- stop the loop --
             t = data.nbatches() + 1
@@ -376,6 +385,9 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
    train_confusion:zero()
    test_confusion:zero()
 
+   confBackup[1] = optim.ConfusionMatrix(classes)
+   confBackup[2] = optim.ConfusionMatrix(classes)
+
    --set optimization parameters
    optimState = {
       learningRate = opt.learningRate,
@@ -417,7 +429,7 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
 
    weightsBackup = {w:clone(), w:clone()}
 
-   local prevTrainError = math.huge
+   local prevTestAcc = 0
    local trainedSuccessfully = false
    local hasNaN
    local weightsBackup = w:clone()
@@ -429,7 +441,6 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
    if opt.network ~= 'N/A' then
       epochInit = tonumber(string.match(opt.network, "%d+"))
       epoch = epochInit + 1
-   end
 
    while continue do
       -------------------------------------------------------------------------------
@@ -446,14 +457,21 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
          trainedSuccessfully = checkWeight(model, logMin, logMax, logAvg, logStd, logGwsMin, logGwsMax, logGwsAvg, logGwsStd)
       end
 
+      -- (3) testing
+      sys.tic()
+      ce_test_error = 0
+      if verbose then print('==> Test ' .. epoch) end
+      test(testData, model, loss, dropout, test_confusion)
+      local timeTest = sys.toc()
+
       -- (2) training accuraccy
-      if (trainedSuccessfully and not (ce_train_error <  2 * prevTrainError + 5)) then
+      if (trainedSuccessfully and not (test_confusion.totalValid >  0.5 * prevTestAcc)) then
          print()
          print(sys.COLORS.red .. '>>>>>>>>>>>>>>><<<<<<<<<<<<<<<')
          print(sys.COLORS.red .. '>>> Drop in training > 50% <<<')
          print(sys.COLORS.red .. '>>>>>>>>>>>>>>><<<<<<<<<<<<<<<')
          print('\n')
-         prevTrainError = ce_train_error
+         prevTestAcc = test_confusion.totalValid
          trainedSuccessfully = false
       end
 
@@ -465,6 +483,7 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
          weightsBackup:copy(w)
 
          -- (2) Statistics
+         -- (2.1) Train statistics
          trainTestTime.train.perSample = trainTestTime.train.perSample + time / (opt.batchSize * trainData.nbatches())
          trainTestTime.train.total     = trainTestTime.train.total + time
          trainTestTime.loading = trainTestTime.loading + trainTestTime.tmpLoading
@@ -485,14 +504,8 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
             print()
          end
 
-         -- (3) testing
-         sys.tic()
-         ce_test_error = 0
-         if verbose then print('==> Test ' .. epoch) end
-         test(testData, model, loss, dropout, test_confusion)
-         local time = sys.toc()
 
-         -- (3.1) testing statistics
+         -- (2.2) testing statistics
          trainTestTime.test.perSample = trainTestTime.test.perSample + time / (opt.batchSize * trainData.nbatches())
          trainTestTime.test.total     = trainTestTime.test.total + time
 
@@ -504,7 +517,7 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
             print()
          end
 
-         -- (4) update loggers
+         -- (5) update loggers
          train_confusion:updateValids()
          test_confusion:updateValids()
          logger:add{['% train accuracy'] = train_confusion.totalValid * 100, ['% test accuracy'] = test_confusion.totalValid * 100}
@@ -518,10 +531,10 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
             ce_logger:plot()
          end
 
-         -- (5) save the network
+         -- (6) save the network
          w, dE_dw = netToolkit.saveNet(model, opt.save_dir .. 'model-' .. epoch .. '.net', verbose)
 
-         -- (6) log in file
+         -- (7) log in file
          if (epoch % 5 == 0) then
             statFile:write(string.format('\nTraining & testing time for %d epochs: %.2f minutes\n', epoch - epochInit, (trainTestTime.train.total + trainTestTime.test.total)/60))
             statFile:write(string.format('Average training time per sample: %.3f ms\n', trainTestTime.train.perSample * 1000 / epochTrained))
