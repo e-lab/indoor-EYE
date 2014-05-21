@@ -7,7 +7,7 @@ function print_sizes(data, text, verbose)
 --print dimensions of data
 
    if verbose then
-      print('==> ' .. text .. ' number of batches: ' .. data.nbatches() .. ', Batch size: ' .. opt.batchSize .. 'x 3 x' .. opt.height .. 'x' .. opt.width)
+      print('==> ' .. text .. ' number of batches: ' .. data.nBatches .. ', Batch size: ' .. opt.batchSize .. 'x3x' .. opt.height .. 'x' .. opt.width)
    end
 
 end
