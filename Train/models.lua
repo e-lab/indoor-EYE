@@ -14,7 +14,7 @@ function get_model1()
    local poolStride  = {        2,  2,  1,  1,  2}
 
    --options for linear layers
-   local neuronsPerLinearLayer = {1024, 1024} --number of neurons in linear layer
+   local neuronsPerLinearLayer = {4096, 4096} --number of neurons in linear layer
 
    --neuralnet model consists of submodel1 and submodel2
    local model = nn.Sequential()
