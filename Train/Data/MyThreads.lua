@@ -1,15 +1,18 @@
 local Threads = require 'threads'
+local sdl = require 'sdl2'
 local MyThreads = {__index=MyThreads}
+
+sdl.init(0)
 
 setmetatable(MyThreads, MyThreads)
 
 function MyThreads:__call(nThreads, ...)
    local self = {nThreads=nThreads, threads={}, com={}}
 
-   setmetatable(self, MyThreads)
+   setmetatable(self, {__index=MyThreads})
 
    for thread=1, nThreads do
-      self.threads[thread] = Threads(1, ...)
+      self.threads[thread] = Threads(1, function () threadId = thread end, ...)
       self.com[thread] = 0
    end
 
@@ -42,7 +45,7 @@ function MyThreads:synchronize(threadId)
 end
 
 function MyThreads:terminate()
-   for (_, thread ipairs(self.threads)) do
+   for _, thread in ipairs(self.threads) do
       thread:terminate()
    end
 end
