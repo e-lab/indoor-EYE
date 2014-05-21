@@ -30,14 +30,15 @@ local title = [[
 opt = lapp(title .. [[
 
 Dataset's parameters
-   --side    (default 46   ) Training and testing image's side length (max 256)
-   --colour  (default true ) True by default, allows to train on B&W if the flag is called
-   --jitter  (default 0    ) Introduce random crop for loweing overfitting
-   --distort                 TODO
-   --mmload                  Memory mapping when loading data. Use with small RAM
-   --parts                   Use image parts instead of whole images
-   --dropout (default 0)     Dropout in MLP. Set it to 0 for disabling it, 0.5 for "standard" working value
-   --inputDO (default 0)     Input dropout. Set it to 0 for disabling it, 0.2 for "standard" working value
+   --side           (default 46    ) Training and testing image's side length (max 256)
+   --colour         (default true  ) True by default, allows to train on B&W if the flag is called
+   --jitter         (default 0     ) Introduce random crop for loweing overfitting
+   --distort                         TODO
+   --dataload       (default normal) Metho to load data set (normal | mm | mm_multi). Use mm or mm_multi for small RAM
+   --loading_thread (default 4     ) Number of threads used when asking for mm_multi
+   --parts                           Use image parts instead of whole images
+   --dropout        (default 0     ) Dropout in MLP. Set it to 0 for disabling it, 0.5 for "standard" working value
+   --inputDO        (default 0     ) Input dropout. Set it to 0 for disabling it, 0.2 for "standard" working value
 
 Learning parameters
    --learningRate      (default 5e-2)
@@ -165,12 +166,17 @@ os.execute('mkdir -p ' .. opt.save_dir) --create folder for saving results
 global_mean, global_std = get_global_mean_async(train_data_file, train_info_file, opt.save_dir, opt.mean_sl, opt.verbose)
 
 --prepare data
-if opt.mmload then
+if opt.dataload == 'mm_multi' then
    --use memory mapping
+   testData = load_data_mm_multi(test_data_file, test_info_file)
+   trainData = load_data_mm_multi(train_data_file, train_info_file)
+elseif opt.dataload == 'mm' then
+   opt.loading_thread = 1
    testData = load_data_mm(test_data_file, test_info_file)
    trainData = load_data_mm(train_data_file, train_info_file)
 else
    --load all data at once
+   opt.loading_thread = 1
    testData = load_data(test_data_file, test_info_file, 'test.t7', opt.data_sl)
    trainData = load_data(train_data_file, train_info_file, 'train.t7', opt.data_sl)
 end
