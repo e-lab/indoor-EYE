@@ -30,15 +30,15 @@ local title = [[
 opt = lapp(title .. [[
 
 Dataset's parameters
-   --side           (default 46    ) Training and testing image's side length (max 256)
-   --colour         (default true  ) True by default, allows to train on B&W if the flag is called
-   --jitter         (default 0     ) Introduce random crop for loweing overfitting
+   --side           (default 46  ) Training and testing image's side length (max 256)
+   --colour         (default true) True by default, allows to train on B&W if the flag is called
+   --jitter         (default 0   ) Introduce random crop for loweing overfitting
    --distort                         TODO
-   --dataload       (default normal) Metho to load data set (normal | mm | mm_multi). Use mm or mm_multi for small RAM
-   --loading_thread (default 4     ) Number of threads used when asking for mm_multi
+   --dataload       (default full) Method to load data set (full | mm | mm_multi). Use mm or mm_multi for small RAM
+   --loading_thread (default 4   ) Number of threads used when asking for mm_multi
    --parts                           Use image parts instead of whole images
-   --dropout        (default 0     ) Dropout in MLP. Set it to 0 for disabling it, 0.5 for "standard" working value
-   --inputDO        (default 0     ) Input dropout. Set it to 0 for disabling it, 0.2 for "standard" working value
+   --dropout        (default 0   ) Dropout in MLP. Set it to 0 for disabling it, 0.5 for "standard" working value
+   --inputDO        (default 0   ) Input dropout. Set it to 0 for disabling it, 0.2 for "standard" working value
 
 Learning parameters
    --learningRate      (default 5e-2)

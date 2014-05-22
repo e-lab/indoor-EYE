@@ -156,10 +156,15 @@ end
 
 function test(data, model, loss, dropout, confusion_matrix)
 
-   data.newShuffle()
+   local nbThread = opt.loading_thread
+   if (nbThread > 1) then
+      data.newShuffle()
+   end
 
-   data.prepareBatch(1, true)
-   data.prepareBatch(2, true)
+   for batch = 1, math.min(nbThread, data.nBatches) do
+      data.prepareBatch(batch, true)
+   end
+
    -- Switching off the dropout
    if opt.dropout > 0 or opt.inputDO > 0 then
       for _,d in ipairs(dropout) do
@@ -172,8 +177,9 @@ function test(data, model, loss, dropout, confusion_matrix)
       xlua.progress(t, data.nBatches)
 
       data.copyBatch(t, ims, targets)
-      if (t + 2 <=  data.nBatches) then
-         data.prepareBatch(t + 2, true)
+      --prepare next batch
+      if t + nbThread <= data.nBatches then
+         data.prepareBatch(t + nbThread, true)
       end
 
       -- test sample
