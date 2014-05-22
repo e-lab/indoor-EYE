@@ -439,6 +439,7 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
    end
 
    while continue do
+      collectgarbage()
       -------------------------------------------------------------------------------
       --train
       sys.tic()
@@ -453,8 +454,8 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
          trainedSuccessfully = checkWeight(model, logMin, logMax, logAvg, logStd, logGwsMin, logGwsMax, logGwsAvg, logGwsStd)
       end
 
+      -- (2) testing and checking if there is a drop in the accuracy
       if (trainedSuccessfully) then
-         -- (3) testing
          sys.tic()
          ce_test_error = 0
          if verbose then print('==> Test ' .. epoch) end
@@ -465,7 +466,7 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
          trainedSuccessfully = test_confusion.totalValid >  0.5 * prevTestAcc
       end
 
-      -- if every thing is good the procced
+      -- (3) if every thing is good the procced
       if (trainedSuccessfully) then
 
          -- (1) backup weight
@@ -495,12 +496,12 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
          end
 
          -- (2.2) testing statistics
-         trainTestTime.test.perSample = trainTestTime.test.perSample + time / (opt.batchSize * trainData.nbatches())
-         trainTestTime.test.total     = trainTestTime.test.total + time
+         trainTestTime.test.perSample = trainTestTime.test.perSample + timeTest / (opt.batchSize * trainData.nbatches())
+         trainTestTime.test.total     = trainTestTime.test.total + timeTest
 
          if verbose then
-            print(string.format("======> Time to test 1 iteration = %.2f sec", time))
-            print(string.format("======> Time to test 1 sample = %.2f ms", time / (opt.batchSize * testData.nbatches()) *  1000))
+            print(string.format("======> Time to test 1 iteration = %.2f sec", timeTest))
+            print(string.format("======> Time to test 1 sample = %.2f ms", timeTest / (opt.batchSize * testData.nbatches()) *  1000))
             print(string.format("======> Test CE error: %.2f", ce_test_error))
             print_confusion_matrix(test_confusion, '======> Test')
             print()
@@ -520,6 +521,8 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
          end
 
          -- (6) save the network
+         w = nil
+         dE_dw = nil
          w, dE_dw = netToolkit.saveNet(model, opt.save_dir .. 'model-' .. epoch .. '.net', verbose)
 
          -- (7) log in file
