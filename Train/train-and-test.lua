@@ -455,12 +455,13 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
       end
 
       -- (2) testing and checking if there is a drop in the accuracy
+      local timeTest = 0
       if (trainedSuccessfully) then
          sys.tic()
          ce_test_error = 0
          if verbose then print('==> Test ' .. epoch) end
          test(testData, model, loss, dropout, test_confusion)
-         local timeTest = sys.toc()
+         timeTest = sys.toc()
          test_confusion:updateValids()
 
          trainedSuccessfully = test_confusion.totalValid >  0.5 * prevTestAcc
