@@ -392,9 +392,33 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
    }
 
    --init logger for train and test accuracy
-   local logger = optim.Logger(opt.save_dir .. 'accuracy.log')
+   local logger
    --init logger for train and test cross-entropy error
-   local ce_logger = optim.Logger(opt.save_dir .. 'cross-entropy.log')
+   local ce_logger
+
+   local epochInit = 0
+   if opt.network ~= 'N/A' then
+      epochInit = tonumber(string.match(opt.network, "%d+"))
+      epoch = epochInit + 1
+
+      if (paths.filep(opt.save_dir .. 'accuracy.log')) then
+         os.execute("mv " .. opt.save_dir .. 'accuracy.log '.. opt.save_dir .. '.acc.tmp')
+      end
+      acc = io.open(opt.save_dir .. '.acc.tmp', r)
+      local tmp = acc:read("*line")
+      print('Coucou', tmp)
+
+      for ep = 1, epochInit do
+         tmp = acc:read("*number")
+         print('train', tmp)
+         tmp = acc:read("*number")
+         print('test', tmp)
+      end
+   else
+   logger = optim.Logger(opt.save_dir .. 'accuracy.log')
+   ce_logger = optim.Logger(opt.save_dir .. 'cross-entropy.log')
+end
+
    --init train and test time
    trainTestTime.train   = {}
    trainTestTime.test    = {}
@@ -431,12 +455,7 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
    local nbFailures = 0
    local continue = true
    local epoch = 1
-   local epochInit = 0
    local epochTrained = 0
-   if opt.network ~= 'N/A' then
-      epochInit = tonumber(string.match(opt.network, "%d+"))
-      epoch = epochInit + 1
-   end
 
    while continue do
       -------------------------------------------------------------------------------

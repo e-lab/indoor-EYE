@@ -211,10 +211,19 @@ end
 
 -- Logging statistics ----------------------------------------------------------
 print '==> Set up Log'
--- Open file in re-write mode (NOT append)
-statFile = io.open(opt.save_dir .. 'stat.txt','w+')
--- Writing title
-statFile:write(title)
+if (opt.network == 'N/A') then
+   -- Open file in re-write mode (NOT append)
+   statFile = io.open(opt.save_dir .. 'stat.txt','w+')
+   -- Writing title
+   statFile:write(title)
+else
+   statFile = io.open(opt.save_dir .. 'stat.txt','a')
+
+   statFile:write('\n')
+   statFile:write('-------------------------------------------------------------------------------\n')
+   statFile:write('------------------------------------ Restart ----------------------------------\n')
+   statFile:write('-------------------------------------------------------------------------------\n')
+end
 -- Writing currect commit hash
 statFile:write(string.format('Current commit hash: %s\n',sys.execute('git rev-parse HEAD')))
 -- Collecting input arguments and writing them to file
