@@ -6,7 +6,6 @@
 -- Artem Kuharenko, February 2014
 -------------------------------------------------------------------------------
 require 'pl'
-require 'torchffi'
 require 'eex'
 
 opt = lapp([[

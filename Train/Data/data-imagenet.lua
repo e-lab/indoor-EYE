@@ -533,7 +533,9 @@ function filter_imagenet(src_data, src_info, dst_data, dst_info, new_classes, im
 
    for i = 1, d.labels:size(1) do
 
-      xlua.progress(i, d.labels:size(1))
+      if (i == 1 or i == d.labels:size(1) or i%10 == 0) then
+         xlua.progress(i, d.labels:size(1))
+      end
 
       local si = shuffle[i]
       local label = d.labels[si]
@@ -593,7 +595,9 @@ function filter_imagenet(src_data, src_info, dst_data, dst_info, new_classes, im
       file_range[file][1] = global_index
 
       for i = 1, new_data_n[file] do
+         if (i == 1 or i == new_data_n[file] or i%10 == 0) then
          xlua.progress(i, new_data_n[file])
+      end
 
          local j = idxs[global_index]
          local imagenet_label = d.labels[j]
