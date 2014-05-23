@@ -3,7 +3,7 @@
 To run the GPU memory monitor you need to run two concurrent processes
 
 ```bash
-./monitorGPUsRAM/sh
+./monitorGPUsRAM.sh
 ```
 
 and, in another shell,
