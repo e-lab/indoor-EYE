@@ -392,9 +392,61 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
    }
 
    --init logger for train and test accuracy
-   local logger = optim.Logger(opt.save_dir .. 'accuracy.log')
+   local logger
    --init logger for train and test cross-entropy error
-   local ce_logger = optim.Logger(opt.save_dir .. 'cross-entropy.log')
+   local ce_logger
+
+   local epochInit = 0
+   local epoch = 1
+   local prevTestAcc = 0
+   if opt.network ~= 'N/A' then
+      -- (1) get the number of the epoch
+      epochInit = tonumber(string.match(opt.network, "%d+"))
+      epoch = epochInit + 1
+
+      -- (2) create tpm files
+      if (paths.filep(opt.save_dir .. 'accuracy.log')) then
+         os.execute("mv " .. opt.save_dir .. 'accuracy.log '.. opt.save_dir .. '.acc.tmp')
+      end
+      if (paths.filep(opt.save_dir .. 'cross-entropy.log')) then
+         os.execute("mv " .. opt.save_dir .. 'cross-entropy.log '.. opt.save_dir .. '.ce.tmp')
+      end
+
+      -- (3) open files
+      local acc = io.open(opt.save_dir .. '.acc.tmp', r)
+      local ce = io.open(opt.save_dir .. '.ce.tmp', r)
+
+      -- (4) skip the header
+      local tmpTrain = acc:read("*line")
+      local tmpTest = ce:read("*line")
+      local tmpCeTrain, tmpCeTest
+
+      -- (5) init loggers
+      logger = optim.Logger(opt.save_dir .. 'accuracy.log')
+      ce_logger = optim.Logger(opt.save_dir .. 'cross-entropy.log')
+
+      -- (6) load backup data
+      for ep = 1, epochInit do
+         tmpTrain = acc:read("*number")
+         tmpTest = acc:read("*number")
+         logger:add{['% train accuracy'] = tmpTrain, ['% test accuracy'] = tmpTest}
+         tmpCeTrain = ce:read("*number")
+         tmpCeTest = ce:read("*number")
+         ce_logger:add{['ce train error'] = tmpCeTrain, ['ce test error'] = tmpCeTest}
+      end
+
+      -- (7) backup previous accuracy
+      prevTestAcc = tmpTest/100
+
+      -- (8) close and delete tmp files
+      io.close(acc)
+      io.close(ce)
+      os.execute("rm " .. opt.save_dir .. ".acc.tmp " .. opt.save_dir .. ".ce.tmp")
+   else
+      logger = optim.Logger(opt.save_dir .. 'accuracy.log')
+      ce_logger = optim.Logger(opt.save_dir .. 'cross-entropy.log')
+   end
+
    --init train and test time
    trainTestTime.train   = {}
    trainTestTime.test    = {}
@@ -424,19 +476,12 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
 
    weightsBackup = {w:clone(), w:clone()}
 
-   local prevTestAcc = 0
    local trainedSuccessfully = false
    local hasNaN
    local weightsBackup = w:clone()
    local nbFailures = 0
    local continue = true
-   local epoch = 1
-   local epochInit = 0
    local epochTrained = 0
-   if opt.network ~= 'N/A' then
-      epochInit = tonumber(string.match(opt.network, "%d+"))
-      epoch = epochInit + 1
-   end
 
    while continue do
       collectgarbage()
