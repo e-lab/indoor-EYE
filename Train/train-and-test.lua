@@ -26,7 +26,13 @@ local w, dE_dw
 function train(data, model, loss, dropout, confusion_matrix)
    --train one iteration
 
-   data.prepareBatch(1)
+   local nbThread = opt.mm_threads
+   data.newShuffle()
+
+   for batch = 1, nbThread do
+      data.prepareBatch(batch, false)
+   end
+
    local t = 1
    local trainedSuccessfully = true
    local nbFailures = 0
@@ -45,9 +51,9 @@ function train(data, model, loss, dropout, confusion_matrix)
    trainTestTime.tmpLoading = 0
    trainTestTime.tmpCuda = 0
 
-   while t <= data.nbatches() do
+   while t <= data.nBatches do
 
-      xlua.progress(t, data.nbatches())
+      xlua.progress(t, data.nBatches)
 
       --copy batch
       if (trainedSuccessfully) then
@@ -59,11 +65,11 @@ function train(data, model, loss, dropout, confusion_matrix)
          end
 
          local timeB = sys.clock()
-         data.copyBatch(ims, targets)
+         data.copyBatch(t, ims, targets)
 
          --prepare next batch
-         if t < data.nbatches() then
-            data.prepareBatch(t + 1)
+         if t + nbThread <= data.nBatches then
+            data.prepareBatch(t + nbThread, false)
          end
          trainTestTime.tmpLoading = trainTestTime.tmpLoading + (sys.clock() - timeB)
       else
@@ -137,15 +143,15 @@ function train(data, model, loss, dropout, confusion_matrix)
             print(sys.COLORS.red .. 'Failed training on current batch: ' .. ce_train_error .. '. Try again with backup parameters.')
          else
             -- stop the loop --
-            t = data.nbatches() + 1
+            t = data.nBatches + 1
          end
       end
    end
 
    if (consecutiveFailures < 3) then
-      ce_train_error = ce_train_error / data.nbatches()
-      trainTestTime.tmpLoading = trainTestTime.tmpLoading / data.nbatches()
-      trainTestTime.tmpCuda = trainTestTime.tmpCuda / data.nbatches()
+      ce_train_error = ce_train_error / (data.nBatches * opt.batchSize)
+      trainTestTime.tmpLoading = trainTestTime.tmpLoading / data.nBatches
+      trainTestTime.tmpCuda = trainTestTime.tmpCuda / data.nBatches
 
       return true, nbFailures
    else
@@ -158,7 +164,13 @@ end
 
 function test(data, model, loss, dropout, confusion_matrix)
 
-   data.prepareBatch(1, 1)
+   local nbThread = opt.mm_threads
+   data.newShuffle()
+
+   for batch = 1, math.min(nbThread, data.nBatches) do
+      data.prepareBatch(batch, true)
+   end
+
    -- Switching off the dropout
    if opt.dropout > 0 or opt.inputDO > 0 then
       for _,d in ipairs(dropout) do
@@ -166,13 +178,14 @@ function test(data, model, loss, dropout, confusion_matrix)
       end
    end
 
-   for t = 1, data.nbatches() do
+   for t = 1, data.nBatches do
 
-      xlua.progress(t, data.nbatches())
+      xlua.progress(t, data.nBatches)
 
-      data.copyBatch(ims, targets)
-      if (t <  data.nbatches()) then
-         data.prepareBatch(t + 1, 1)
+      data.copyBatch(t, ims, targets)
+      --prepare next batch
+      if t + nbThread <= data.nBatches then
+         data.prepareBatch(t + nbThread, true)
       end
 
       -- test sample
@@ -196,7 +209,7 @@ function test(data, model, loss, dropout, confusion_matrix)
       end
    end
 
-   ce_test_error = ce_test_error / (data.nbatches() * opt.batchSize)
+   ce_test_error = ce_test_error / (data.nBatches * opt.batchSize)
 
 end
 
@@ -520,8 +533,7 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
          weightsBackup:copy(w)
 
          -- (2) Statistics
-         -- (2.1) Train statistics
-         trainTestTime.train.perSample = trainTestTime.train.perSample + time / (opt.batchSize * trainData.nbatches())
+         trainTestTime.train.perSample = trainTestTime.train.perSample + time / (opt.batchSize * trainData.nBatches)
          trainTestTime.train.total     = trainTestTime.train.total + time
          trainTestTime.loading = trainTestTime.loading + trainTestTime.tmpLoading
          trainTestTime.cuda = trainTestTime.cuda + trainTestTime.tmpCuda
@@ -529,7 +541,7 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
 
          if verbose then
             print(string.format("======> Time to learn 1 iteration = %.2f sec", time))
-            print(string.format("======> Time to train 1 sample = %.2f ms", time / (opt.batchSize * trainData.nbatches()) * 1000))
+            print(string.format("======> Time to train 1 sample = %.2f ms", time / (opt.batchSize * trainData.nBatches) * 1000))
             print(string.format("======> Train CE error: %.2f", ce_train_error))
             print(string.format("======> Time to load 1 batch = %.2f msec", trainTestTime.tmpLoading * 1000))
             print(string.format("======> Time to cumpute 1 batch on the GPU = %.2f msec", trainTestTime.tmpCuda * 1000))
@@ -542,12 +554,12 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
          end
 
          -- (2.2) testing statistics
-         trainTestTime.test.perSample = trainTestTime.test.perSample + timeTest / (opt.batchSize * trainData.nbatches())
+         trainTestTime.test.perSample = trainTestTime.test.perSample + timeTest / (opt.batchSize * trainData.nBatches)
          trainTestTime.test.total     = trainTestTime.test.total + timeTest
 
          if verbose then
             print(string.format("======> Time to test 1 iteration = %.2f sec", timeTest))
-            print(string.format("======> Time to test 1 sample = %.2f ms", timeTest / (opt.batchSize * testData.nbatches()) *  1000))
+            print(string.format("======> Time to test 1 sample = %.2f ms", timeTest / (opt.batchSize * testData.nBatches) *  1000))
             print(string.format("======> Test CE error: %.2f", ce_test_error))
             print_confusion_matrix(test_confusion, '======> Test')
             print()
