@@ -60,7 +60,11 @@ function load_data_mm_multi(data_file, info_file)
    end
    local jpegs_pp = tonumber(torch.data(jpegs_p, true))
 
-   --  (1) threads init functions
+   -- (1.6) jitter tensor
+   dataset.jitter = torch.IntTensor(nSamples):random(10):add(-1)
+   local jitter_p = tonumber(torch.data(dataset.jitter, true))
+
+   -- (2) threads init functions
    local function requirements ()
       ffi = require 'ffi'
       gm = require 'graphicsmagick'
@@ -76,6 +80,7 @@ function load_data_mm_multi(data_file, info_file)
       sharedShuffle_p = ffi.cast('unsigned long *', shuffle_p)
       sharedGlobalMean_p = ffi.cast('float *', gm_p)
       sharedGlobalStd_p = ffi.cast('float *', gstd_p)
+      sharedJitter_p = ffi.cast('int *', jitter_p)
 
       sharedSamples_pp = torch.LongTensor(torch.LongStorage(nbThreads, samples_pp)):resize(nbThreads)
       sharedTargets_pp = torch.LongTensor(torch.LongStorage(nbThreads, targets_pp)):resize(nbThreads)
@@ -95,17 +100,50 @@ function load_data_mm_multi(data_file, info_file)
       end
 
       -- (3) prepare data destination
-      -- samples = torch.FloatTensor(bs, c, h, w)
       local sharedSamples_pp = torch.LongTensor(torch.LongStorage(nbThreads, samples_pp)):resize(nbThreads)
       threadSamples = torch.FloatTensor(torch.FloatStorage(batchLength, sharedSamples_pp[threadId])):resize(bs, c, h, w)
       threadSamples:zero()
-      -- targets = torch.LongTensor(bs)
       local sharedTargets_pp = torch.LongTensor(torch.LongStorage(nbThreads, targets_pp)):resize(nbThreads)
       threadTargets_p = ffi.cast('unsigned long *', sharedTargets_pp[threadId])
 
+      -- (4) jitter functions
+      extract_jitter = {}
+      extract_jitter[0] = function (img, height, width, jitter)
+         return img[{{}, {1, height}, {1, width}}]
+      end
+      extract_jitter[1] = function (img, height, widthi, jitter)
+         return img[{{}, {1, height}, {1 + jitter, width + jitter}}]
+      end
+      extract_jitter[2] = function (img, height, width, jitter)
+         return img[{{}, {1 + jitter, height + jitter}, {1 + jitter, width + jitter}}]
+      end
+      extract_jitter[3] = function (img, height, widthi, jitter)
+         return img[{{}, {1 + jitter, height + jitter}, {1, width}}]
+      end
+      extract_jitter[4] = function (img, height, width, jitter)
+         local halfJitter = math.floor(jitter/2)
+         return img[{{}, {1 + halfJitter, height + halfJitter}, {1 + halfJitter, width + halfJitter}}]
+      end
+      extract_jitter[5] = function (img, height, width, jitter)
+         return image.hflip(img[{{}, {1, height}, {1, width}}])
+      end
+      extract_jitter[6] = function (img, height, widthi, jitter)
+         return image.hflip(img[{{}, {1, height}, {1 + jitter, width + jitter}}])
+      end
+      extract_jitter[7] = function (img, height, width, jitter)
+         return image.hflip(img[{{}, {1 + jitter, height + jitter}, {1 + jitter, width + jitter}}])
+      end
+      extract_jitter[8] = function (img, height, widthi, jitter)
+         return image.hflip(img[{{}, {1 + jitter, height + jitter}, {1, width}}])
+      end
+      extract_jitter[9] = function (img, height, width, jitter)
+         local halfJitter = math.floor(jitter/2)
+         return image.hflip(img[{{}, {1 + halfJitter, height + halfJitter}, {1 + halfJitter, width + halfJitter}}])
+      end
+
    end
 
-   -- (2) prepare job function
+   -- (3) prepare job function
    dataset.jobToDo = function (tId, idx, test)
       assert(tId == threadId)
 
@@ -133,20 +171,13 @@ function load_data_mm_multi(data_file, info_file)
          local r = l + size - 1
          sample = sample[{ {},{t,b},{l,r} }]
 
-         sample = image.scale(sample, w + jitter, h + jitter)
 
          if jitter > 0 and not test then
-            -- extract sub-patch, with optional jitter:
-            size = math.min(sample:size(2), sample:size(3))
-            t = mf((sample:size(2) - h)/2 + 1)
-            l = mf((sample:size(3) - w)/2 + 1)
-
-            t = t + mf(torch.uniform(-jitter/2,jitter/2))
-            l = l + mf(torch.uniform(-jitter/2,jitter/2))
-
-            b = t + h - 1
-            r = l + w - 1
-            sample = sample[{ {},{t,b},{l,r} }]
+            sample = image.scale(sample, w + jitter, h + jitter)
+            sample = extract_jitter[sharedJitter_p[ii]](sample, h, w, jitter)
+            sharedJitter_p[ii] = (sharedJitter_p[ii] + 3)%10
+         else
+            sample = image.scale(sample, w, h)
          end
 
          -- normalize sample
@@ -167,10 +198,10 @@ function load_data_mm_multi(data_file, info_file)
 
    dataset.finishJob = function(tId)
    end
-   -- (3) create threads
+   -- (4) create threads
    dataset.threads = require('Data/MyThreads')(nbThreads, requirements, initData)
 
-   -- (4) prepare main thread functions
+   -- (5) prepare main thread functions
    dataset.nBatches = math.floor(nSamples / batchSize)
    dataset.threadId = torch.IntTensor(dataset.nBatches)
 
