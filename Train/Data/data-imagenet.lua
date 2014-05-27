@@ -34,268 +34,6 @@ local bs = opt.batchSize
 
 dofile('Data/load_data_multi.lua')
 
-function load_data_mm(data_file, info_file)
-
-   local dataset = torch.load(info_file)
-   local number_file = 1
-   dataset.data = {}
-   if (dataset.file_range) then
-      number_file = dataset.file_range:size(1)
-      dataset.data_p = torch.LongTensor(number_file)
-      for file = 1, number_file do
-         dataset.data[file] = torch.ByteStorage(data_file .. '-file' .. file .. '.t7')
-         dataset.data_p[file] = tonumber(ffi.cast('intptr_t', torch.data(dataset.data[file])))
-      end
-   else
-      dataset.data_p = torch.LongTensor(1)
-      dataset.data[1] = torch.ByteStorage(data_file)
-      dataset.data_p[1] = tonumber(ffi.cast('intptr_t', torch.data(dataset.data[1])))
-   end
-
-   local nsamples = dataset.labels:size(1)
-   local samples = torch.FloatTensor(bs, c, h, w)
-   local targets = torch.FloatTensor(bs)
-   local jpegs = dataset.data
-   local jpegs_p = dataset.data_p
-   local offsets = dataset.offsets
-   local sizes = dataset.sizes
-   local labels = dataset.labels
-   -- local shuffle = torch.randperm(nsamples):type('torch.LongTensor')
-   local file_number = dataset.file_number
-
-   -- com is a shared state between the main thread and
-   -- the batch thread, it holds two variables:
-   -- com[0]: the index of the batch to generate (if 0, then the thread is idle)
-   -- com[1]: whether the batch is used for test or not (1 for test)
-   local com = ffi.new('unsigned long[3]', {0,0})
-
-   dataset.nBatches = math.floor(nsamples / bs)
-
-   -- block:
-   local block = function(...)
-      -- libs
-      require 'sys'
-      require 'torch'
-      require 'torchffi'
-      local gm = require 'graphicsmagick'
-      require 'image'
-
-      --local distort = require 'distort'
-
-      -- args:
-      local args = {...}
-      local nsamples = args[2]
-      local bs = args[3]
-      local c = args[4]
-      local h = args[5]
-      local w = args[6]
-      local distorton = args[7]
-      local jitter = args[8]
-      local receptive = args[9]
-      --      local global_mean = args[10]
-      local local_mean = args[11]
-      local local_std = args[12]
-      --  local shuffle_p = ffi.cast('unsigned long *', args[13])
-      local samples_p = ffi.cast('float *', args[14])
-      local targets_p = ffi.cast('float *', args[15])
-      local number_file  = args[23]
-      local tab_j_p = ffi.cast('unsigned long *', args[16])
-      local offsets_p = ffi.cast('unsigned long *', args[17])
-      local sizes_p   = ffi.cast('unsigned long *', args[18])
-      local labels_p  = ffi.cast('unsigned long *', args[19])
-      local com       = ffi.cast('unsigned long *', args[20])
-      local gm_p      = ffi.cast('float *', args[21])
-      local std_p     = ffi.cast('float *', args[22])
-      local file_n_p  = ffi.cast('unsigned int *', args[24])
-
-      local gmStorage = torch.FloatStorage(c, tonumber(ffi.cast('intptr_t', gm_p)))
-      local global_mean = torch.FloatTensor(gmStorage)
-      local stdStorage = torch.FloatStorage(c, tonumber(ffi.cast('intptr_t', std_p)))
-      local global_std = torch.FloatTensor(stdStorage)
-
-      local jpegs_pStorage = torch.LongStorage(number_file, tonumber(ffi.cast('intptr_t', tab_j_p)))
-      local jpegs_p = torch.LongTensor(jpegs_pStorage)
-
-      local jpegs = {}
-      for file = 1, number_file do
-         jpegs[file] = ffi.cast('unsigned char *', ffi.cast('long', jpegs_p[file]))
-      end
-
-      -- map samples batch to given pointer:
-      local samplesStorage = torch.FloatStorage(bs*c*h*w, tonumber(ffi.cast('intptr_t',samples_p)))
-      local samples = torch.FloatTensor(samplesStorage):resize(bs,c,h,w)
-
-      local shuffle = torch.randperm(nsamples):type('torch.LongTensor')
-      local shuffle_p = ffi.cast('unsigned long *', ffi.cast('intptr_t', torch.data(shuffle)))
-
-      local mf = math.floor
-
-      -- process batches in a loop:
-      while true do
-         -- next batch?
-         while tonumber(com[0]) == 0 do
-            sys.sleep(.005)
-         end
-         local idx = tonumber(com[0])
-
-         -- train or test?
-         local test = (com[1] == 1)
-
-         -- zero batch
-         samples:zero()
-
-         -- shuffle
-         if (idx == 1) then
-            shuffle:copy(torch.randperm(nsamples):type('torch.LongTensor'))
-         end
-
-         -- process batch:
-         for i = 0,bs-1 do
-            -- offsets:
-            local start = ((idx-1)*bs + i) % nsamples
-            local ii = shuffle_p[start] - 1
-
-            -- decode jpeg:
-            local offset = tonumber(offsets_p[ii] - 1)
-            local size = tonumber(sizes_p[ii])
-            local numFile = tonumber(file_n_p[ii])
-            local jpegblob = jpegs[numFile] + offset
-            local sample = gm.Image():fromBlob(jpegblob,size):toTensor('float','RGB','DHW',true)
-
-            -- distort sample
-            if distorton and not test then
-               -- rot + flip + scale:
-               sample = distort(sample, 0.25,.33,.5)
-            end
-
-            -- extract square patch
-            local size = math.min(sample:size(2), sample:size(3))
-            local t = mf((sample:size(2) - size)/2 + 1)
-            local l = mf((sample:size(3) - size)/2 + 1)
-            local b = t + size - 1
-            local r = l + size - 1
-            sample = sample[{ {},{t,b},{l,r} }]
-
-            sample = image.scale(sample, w + jitter, h + jitter)
-
-            -- extract sub-patch, with optional jitter:
-            local size = math.min(sample:size(2), sample:size(3))
-            local t = mf((sample:size(2) - h)/2 + 1)
-            local l = mf((sample:size(3) - w)/2 + 1)
-
-            if jitter > 0 and not test then
-               t = t + mf(torch.uniform(-jitter/2,jitter/2))
-               l = l + mf(torch.uniform(-jitter/2,jitter/2))
-            end
-
-            local b = t + h - 1
-            local r = l + w - 1
-            sample = sample[{ {},{t,b},{l,r} }]
-
-            -- save sample:
-            samples[i+1] = sample
-
-            -- normalize sample
-            --print(global_std)
-
-            for j = 1, c do
-               samples[i+1][j]:add(-global_mean[j])
-               samples[i+1][j]:div(global_std[j])
-            end
-            --a.a=a
-            --samples[i+1]:div(global_std)
-
-            if local_mean then
-               local mean = samples[i+1]:mean()
-               samples[i+1]:add(-mean)
-            end
-
-            if local_std then
-               local std = samples[i+1]:std()
-               samples[i+1]:div(std)
-            end
-
-            -- label:
-            targets_p[i] = labels_p[ii]
-         end
-
-         -- reset com (tells the main thread that the batch is ready)
-         com[0] = 0
-      end
-   end
-
-   -- dispatch:
-   local thread = llthreads.new(string.dump(block),
-   nil,
-   nsamples, bs, c, h, w,
-   opt.distort,
-   opt.jitter,
-   opt.receptive,
-   0,
-   false,
-   false,
-   -- tonumber(ffi.cast('intptr_t', torch.data(shuffle))),
-   nil,
-   tonumber(ffi.cast('intptr_t', torch.data(samples))),
-   tonumber(ffi.cast('intptr_t', torch.data(targets))),
-   tonumber(ffi.cast('intptr_t', torch.data(jpegs_p))),
-   tonumber(ffi.cast('intptr_t', torch.data(offsets))),
-   tonumber(ffi.cast('intptr_t', torch.data(sizes))),
-   tonumber(ffi.cast('intptr_t', torch.data(labels))),
-   tonumber(ffi.cast('intptr_t', com)),
-   tonumber(ffi.cast('intptr_t', torch.data(global_mean))),
-   tonumber(ffi.cast('intptr_t', torch.data(global_std))),
-   number_file,
-   tonumber(ffi.cast('intptr_t', torch.data(file_number)))
-   )
-   thread:start(true)
-
-   -- keep references alive (the GC collects them otherwise,
-   -- because it doesn't know that the thread needs them...)
-   dataset.keep = {
-      -- shuffle = shuffle,
-      samples = samples,
-      targets = targets,
-      com = com,
-      jpegs = jpegs,
-      offsets = offsets,
-      sizes = sizes,
-      labels = labels,
-      file_number = file_number,
-      jpegs_p = jpegs_p,
-   }
-
-   -- prepare batch, asynchronously
-   local function prepareBatch(idx, istest)
-      -- request new batch!
-      if (istest) then
-         com[1] = 1
-      else
-         com[1] = 0
-      end
-      com[0] = idx
-   end
-
-   -- copy batch to GPU
-   local function copyBatch(t, ims, tgs)
-      -- wait on batch ready
-      while tonumber(com[0]) > 0 do
-         sys.sleep(.005)
-      end
-
-      ims:copy(samples)
-      tgs:copy(targets)
-   end
-
-   -- augment dataset:
-   dataset.copyBatch = copyBatch
-   dataset.prepareBatch = prepareBatch
-   dataset.nbatches = nbatches
-
-   return dataset
-
-end
-
 function load_data(data_file, info_file, sfile, fact)
    -- 1. Load and decompress imagenet data
    --With opt.parts option store original images (3, 256, 256), else store resized images
@@ -429,7 +167,7 @@ function load_data(data_file, info_file, sfile, fact)
    -------------------------------------------------------------------------------
 
    local n = data.labels:size(1)
-   local shuffle = torch.randperm(n):type('torch.LongTensor')
+   dataset.shuffle = torch.randperm(n):type('torch.LongTensor')
    data.keep = {
       shuffle = shuffle,
       samples = samples,
@@ -443,7 +181,7 @@ function load_data(data_file, info_file, sfile, fact)
 
       for i = 1, bs do
 
-         local j = shuffle[(idx - 1) * bs + i]
+         local j = dataset.shuffle[(idx - 1) * bs + i]
          local x1 = 1
          local y1 = 1
 
@@ -468,9 +206,13 @@ function load_data(data_file, info_file, sfile, fact)
 
    end
 
-   local function copyBatch(ims, tgs)
+   local function copyBatch(t, ims, tgs)
       ims:copy(samples)
       tgs:copy(targets)
+   end
+
+   dataset.newShuffle = function()
+      dataset.shuffle:copy(torch.randperm(nSamples):type('torch.LongTensor'))
    end
 
    dataset.nBatches = math.floor(data.data:size(1) / opt.batchSize)

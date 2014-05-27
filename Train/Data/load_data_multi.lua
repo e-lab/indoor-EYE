@@ -1,9 +1,9 @@
-function load_data_mm_multi(data_file, info_file)
+function load_data_mm(data_file, info_file)
 
    local dataset = {}
 
    -- (1) get the opt values...
-   local nbThreads = opt.loading_thread
+   local nbThreads = opt.mm_threads
    local height = opt.height
    local width = opt.width
    local batchSize = opt.batchSize
@@ -14,10 +14,10 @@ function load_data_mm_multi(data_file, info_file)
    -- (1.1) dataset information
    dataset.info = torch.load(info_file)
    local nSamples = dataset.info.labels:size(1)
-   local offsets_p     = torch.data(dataset.info.offsets, true)
-   local sizes_p       = torch.data(dataset.info.sizes, true)
-   local labels_p      = torch.data(dataset.info.labels, true)
-   local file_number_p = torch.data(dataset.info.file_number, true)
+   local offsets_p     = tonumber(torch.data(dataset.info.offsets, true))
+   local sizes_p       = tonumber(torch.data(dataset.info.sizes, true))
+   local labels_p      = tonumber(torch.data(dataset.info.labels, true))
+   local file_number_p = tonumber(torch.data(dataset.info.file_number, true))
 
    -- (1.2) shuffle tensor
    dataset.shuffle = torch.randperm(nSamples):type('torch.LongTensor')
@@ -140,7 +140,6 @@ function load_data_mm_multi(data_file, info_file)
          local halfJitter = math.floor(jitter/2)
          return image.hflip(img[{{}, {1 + halfJitter, height + halfJitter}, {1 + halfJitter, width + halfJitter}}])
       end
-
    end
 
    -- (3) prepare job function

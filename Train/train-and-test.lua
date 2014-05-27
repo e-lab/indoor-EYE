@@ -25,10 +25,8 @@ local w, dE_dw
 function train(data, model, loss, dropout, confusion_matrix)
    --train one iteration
 
-   local nbThread = opt.loading_thread
-   if (nbThread > 1) then
-      data.newShuffle()
-   end
+   local nbThread = opt.mm_threads
+   data.newShuffle()
 
    for batch = 1, nbThread do
       data.prepareBatch(batch, false)
@@ -156,10 +154,8 @@ end
 
 function test(data, model, loss, dropout, confusion_matrix)
 
-   local nbThread = opt.loading_thread
-   if (nbThread > 1) then
-      data.newShuffle()
-   end
+   local nbThread = mm_threads
+   data.newShuffle()
 
    for batch = 1, math.min(nbThread, data.nBatches) do
       data.prepareBatch(batch, true)
