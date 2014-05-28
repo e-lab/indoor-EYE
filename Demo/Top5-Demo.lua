@@ -30,7 +30,7 @@ local title = [[
 opt = lapp(title .. [[
 --temp_dir       (default '../Train/temp-data/') Location of test dataset
 --subsample_name (default 'indoor51')            Name of imagenet subsample. Possible options ('class51', 'elab')
---model          (default 'model-90.net'   )     Model's name
+--model          (default 'model-90.net'       ) Model's name
 --histogram                                      Shows prediction's histogram
 --imageSide      (default 128                  ) Image's side length
 --camera                                         Switch to camera input
@@ -44,7 +44,7 @@ torch.setdefaulttensortype('torch.FloatTensor')
 -- Loading net
 netPath = opt.model
 -- netPath = '/home/atcold/work/indoor-EYE-results/' .. opt.model
--- netPath = '/Users/atcold/Work/Vision/DeconvNet/' .. opt.model
+-- netPath = '/Users/atcold/Work/Vision/DeconvNet/SW07C/' .. opt.model
 net = torch.load(netPath)
 
 -- Iterative function definition for disabling the dropouts
