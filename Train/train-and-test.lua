@@ -149,7 +149,7 @@ function train(data, model, loss, dropout, confusion_matrix)
    end
 
    if (consecutiveFailures < 3) then
-      ce_train_error = ce_train_error / (data.nBatches * opt.batchSize)
+      ce_train_error = ce_train_error / data.nBatches
       trainTestTime.tmpLoading = trainTestTime.tmpLoading / data.nBatches
       trainTestTime.tmpCuda = trainTestTime.tmpCuda / data.nBatches
 
