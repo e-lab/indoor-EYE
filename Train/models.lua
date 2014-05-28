@@ -20,6 +20,11 @@ function get_model1()
    local model = nn.Sequential()
    local submodel1 = nn.Sequential() --conv+pool+threshold layers
    local submodel2 = nn.Sequential() --linear layers
+   memory = {}
+   memory[0] = opt.batchSize * (#classes + opt.ncolors*opt.width^2) -- gradInput + output
+   memory.submodel1 = {}
+   memory.submodel1[0] = opt.batchSize * opt.ncolors * opt.width^2 -- + output
+   memory.submodel2 = {}
 
    -- Dropout in the input space
    local dropout = {}
@@ -28,22 +33,25 @@ function get_model1()
       dropout[DOidx] = nn.Dropout(opt.inputDO)
       submodel1:add(dropout[DOidx])
       DOidx = DOidx + 1
+      table.insert(memory.submodel1,4 * opt.batchSize * opt.ncolors * opt.width^2)
    end
 
    --transpose batch if cuda
    if opt.cuda then
       submodel1:add(nn.Transpose({1,4},{1,3},{1,2}))
+      table.insert(memory.submodel1,2 * opt.batchSize * opt.ncolors * opt.width^2)
    end
 
    local mapsizes = {[0]=opt.width} --sizes of output of layers
    local nConnections = {[0]=0} --number of connections between i-th and (i-1) layer
    local nUniqueWeights = {[0] = 0} --number of hidden units in layer i
    local nHiddenNeurons = {[0] = opt.width^2 * opt.ncolors} --number of output units in layer i
+   local r1, r2
 
    --add first 1..nConvLayers layers (conv+pool+threshold)
    for i = 1, nConvLayers do
 
-      local test_batch = torch.Tensor(128, nFeatureMaps[i - 1], mapsizes[i - 1], mapsizes[i - 1])
+      local test_batch = torch.Tensor(opt.batchSize, nFeatureMaps[i - 1], mapsizes[i - 1], mapsizes[i - 1])
 
       local convLayer, poolLayer
 
@@ -63,20 +71,32 @@ function get_model1()
 
       end
 
+      --get layer sizes
+      r1 = convLayer:forward(test_batch)
+      r2 = poolLayer:forward(r1)
+
       convLayer.printable = true
       convLayer.text = 'Conv layer ' .. i
       submodel1:add(convLayer)
+      local biasMem = 2*nFeatureMaps[i]
+      local weightMem = nFeatureMaps[i]*nFeatureMaps[i - 1]*filterSize[i]^2
+      weightMem = opt.cuda and 3*weightMem or 2*weightMem
+      local gradInputMem = test_batch:size(1)*test_batch:size(2)*test_batch:size(3)*test_batch:size(4)
+      local outputMem = r1:size(1)*r1:size(2)*r1:size(3)*r1:size(4)
+      table.insert(memory.submodel1, biasMem + weightMem + gradInputMem + outputMem)
+
       if opt.probe then
          submodel1:add(nn.Probe('Probing ' .. convLayer.text))
       end
+
       submodel1:add(nn.Threshold(0,0))
+      table.insert(memory.submodel1, 2 * outputMem)
+
       if poolSize[i] > 1 then
          submodel1:add(poolLayer)
+         table.insert(memory.submodel1, outputMem + r2:size(1)*r2:size(2)*r2:size(3)*r2:size(4))
       end
 
-      --get layer sizes
-      local r1 = convLayer:forward(test_batch)
-      local r2 = poolLayer:forward(r1)
       -- print(#convLayer.output)
       -- print(#poolLayer.output)
       if opt.cuda then
@@ -101,16 +121,22 @@ function get_model1()
    --transpose batch if cuda
    if opt.cuda then
       submodel1:add(nn.Transpose({4,1},{4,2},{4,3}))
+      table.insert(memory.submodel1, 2 * r2:size(1)*r2:size(2)*r2:size(3)*r2:size(4))
    end
 
+   memory.submodel1[0] = memory.submodel1[0] + r2:size(1)*r2:size(2)*r2:size(3)*r2:size(4)
+
+   memory.submodel2[0] = r2:size(1)*r2:size(2)*r2:size(3)*r2:size(4) + opt.batchSize*#classes
    --reshape
    submodel2:add(nn.Reshape(nHiddenNeurons[nConvLayers]))
+   table.insert(memory.submodel2, 2 * nHiddenNeurons[nConvLayers] * opt.batchSize)
 
    -- If dropout is not 0
    if opt.dropout > 0 then
       dropout[DOidx] = nn.Dropout(opt.dropout)
       submodel2:add(dropout[DOidx])
       DOidx = DOidx + 1
+   table.insert(memory.submodel2, 4 * nHiddenNeurons[nConvLayers] * opt.batchSize)
    end
 
    --add linear layers
@@ -121,15 +147,25 @@ function get_model1()
       linear_layer.printable = true
       linear_layer.text = 'Linear layer ' .. i
       submodel2:add(linear_layer)
+      local biasMem = 2 * nHiddenNeurons[nConvLayers + i]
+      local weightMem = 2 * nHiddenNeurons[nConvLayers + i - 1] * nHiddenNeurons[nConvLayers + i]
+      local gradInputMem = opt.batchSize * nHiddenNeurons[nConvLayers + i - 1]
+      local outputMem = opt.batchSize * nHiddenNeurons[nConvLayers + i]
+      table.insert(memory.submodel2, biasMem + weightMem + gradInputMem + outputMem)
+
       if opt.probe then
          submodel1:add(nn.Probe('Probing ' .. linear_layer.text))
       end
+
       submodel2:add(nn.Threshold(0, 0))
+      table.insert(memory.submodel2, 2 * outputMem)
+
       -- If dropout is not 0
       if opt.dropout > 0 then
          dropout[DOidx] = nn.Dropout(opt.dropout)
          submodel2:add(dropout[DOidx])
          DOidx = DOidx + 1
+         table.insert(memory.submodel2, 4 * outputMem)
       end
 
       --get layer sizes
@@ -145,12 +181,24 @@ function get_model1()
    outputLayer.printable = true
    outputLayer.text = 'Output layer'
    submodel2:add(outputLayer)
+   local biasMem = 2 * #classes
+   local weightMem = 2 * nHiddenNeurons[#nHiddenNeurons] * #classes
+   local gradInputMem = opt.batchSize * nHiddenNeurons[#nHiddenNeurons]
+   local outputMem = opt.batchSize * #classes
+   table.insert(memory.submodel2, biasMem + weightMem + gradInputMem + outputMem)
 
    if opt.probe then
       submodel1:add(nn.Probe('Probing output layer'))
    end
    --log probabilities
    submodel2:add(nn.LogSoftMax())
+   table.insert(memory.submodel2, 2 * outputMem)
+
+   function inMB(mem)
+      mem[0]=mem[0]*4/1024^2
+      for a,b in pairs(mem.submodel1) do memory.submodel1[a] = b*4/1024^2 end
+      for a,b in pairs(mem.submodel2) do memory.submodel2[a] = b*4/1024^2 end
+   end
 
    --add submodels to model
    model:add(submodel1)
@@ -180,6 +228,11 @@ function get_model1()
       statFile:flush()
 
    end
+
+   -- Evaluate network's weight
+   local w = model:getParameters()
+   print(string.format("The network's weights weight %0.2f MB", w:size(1)*4/1024^2))
+
 
    --print(model.modules)
    return model, loss, dropout
