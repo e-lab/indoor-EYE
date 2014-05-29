@@ -56,14 +56,14 @@ function load_data(data_file, info_file, sfile, fact)
    print('==> Getting data')
 
    --here loaded data is stored
-   local data = {}
+   local dataset = {}
 
    if fact == 'load' and paths.filep(opt.temp_dir .. sfile) then
       --load previously saved data
 
       local f = opt.temp_dir .. sfile
       print('======> Loading previously saved data from file ' .. f)
-      data = torch.load(f)
+      dataset = torch.load(f)
 
    else
 
