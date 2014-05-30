@@ -1,7 +1,10 @@
 -------------------------------------------------------------------------------
 -- Define neuralnet models
 -- Artem Kuharenko
+-- Alfredo Canziani, Mar 2014
 -------------------------------------------------------------------------------
+
+-- Craft model ----------------------------------------------------------------
 function get_model1()
 
    --options for (conv+pool+threshold) layers
@@ -20,8 +23,10 @@ function get_model1()
    local model = nn.Sequential()
    local submodel1 = nn.Sequential() --conv+pool+threshold layers
    local submodel2 = nn.Sequential() --linear layers
-   memory = {}
-   memory[0] = opt.batchSize * (#classes + opt.ncolors*opt.width^2) -- gradInput + output
+
+   -- Keeping track of memory usage
+   local memory = {}
+   memory[0] = opt.batchSize * (#classes + opt.ncolors*opt.width^2) -- gradInput + output (overhead)
    memory.submodel1 = {}
    memory.submodel1.val = {}
    memory.submodel1.str = {}
@@ -84,6 +89,8 @@ function get_model1()
       convLayer.printable = true
       convLayer.text = 'Conv layer ' .. i
       submodel1:add(convLayer)
+
+      -- Computing memory usage
       local biasMem = 2*nFeatureMaps[i]
       local weightMem = nFeatureMaps[i]*nFeatureMaps[i - 1]*filterSize[i]^2
       weightMem = opt.cuda and 3*weightMem or 2*weightMem
@@ -106,8 +113,6 @@ function get_model1()
          table.insert(memory.submodel1.str,'Pol')
       end
 
-      -- print(#convLayer.output)
-      -- print(#poolLayer.output)
       if opt.cuda then
          mapsizes[i] = poolLayer.output:size(2)
       else
@@ -159,6 +164,8 @@ function get_model1()
       linear_layer.printable = true
       linear_layer.text = 'Linear layer ' .. i
       submodel2:add(linear_layer)
+
+      -- Computing memory usage
       local biasMem = 2 * nHiddenNeurons[nConvLayers + i]
       local weightMem = 2 * nHiddenNeurons[nConvLayers + i - 1] * nHiddenNeurons[nConvLayers + i]
       local gradInputMem = opt.batchSize * nHiddenNeurons[nConvLayers + i - 1]
@@ -196,6 +203,8 @@ function get_model1()
    outputLayer.printable = true
    outputLayer.text = 'Output layer'
    submodel2:add(outputLayer)
+
+   -- Computing memory usage
    local biasMem = 2 * #classes
    local weightMem = 2 * nHiddenNeurons[#nHiddenNeurons] * #classes
    local gradInputMem = opt.batchSize * nHiddenNeurons[#nHiddenNeurons]
@@ -246,10 +255,11 @@ function get_model1()
 
 
    --print(model.modules)
-   return model, loss, dropout
+   return model, loss, dropout, memory
 
 end
 
+-- Useful functions for <get_model2> -------------------------------------------
 -- Iterative function definition for recovering the dropout table
 local function assignDropout(dropoutTable,module)
    if module.__typename == 'nn.Dropout' then
@@ -266,6 +276,7 @@ function recoverDropoutTable(dropoutTable,network)
    end
 end
 
+-- Load model from file --------------------------------------------------------
 function get_model2(networkFile)
 
    -- Load model from file
