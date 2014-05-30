@@ -23,6 +23,8 @@ if opt.cuda then
    end
    require 'cunn'
 end
+require 'eex'
+data_folder = eex.datasetsPath() .. 'originalDataset/'
 
 -- Requiring models-------------------------------------------------------------
 package.path = package.path .. ';../../Train/?.lua'
@@ -76,6 +78,7 @@ for a,b in ipairs(memory.submodel2.str) do -- Building xtick labels
 end
 mem[{ {3+#memory.submodel1.str+1,mem:size(1)} }] = torch.Tensor(memory.submodel2.val)
 
+print(string.format('The network training will allocate up to %.2d MB', mem:sum()))
 -- Plotting
 gnuplot.plot('Memory usage [MB]', x, mem, '|')
 gnuplot.raw('set xtics (' .. labels .. ')')
