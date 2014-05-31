@@ -1,7 +1,10 @@
 -------------------------------------------------------------------------------
 -- Define neuralnet models
 -- Artem Kuharenko
+-- Alfredo Canziani, Mar 2014
 -------------------------------------------------------------------------------
+
+-- Craft model ----------------------------------------------------------------
 function get_model1()
 
    --options for (conv+pool+threshold) layers
@@ -20,11 +23,17 @@ function get_model1()
    local model = nn.Sequential()
    local submodel1 = nn.Sequential() --conv+pool+threshold layers
    local submodel2 = nn.Sequential() --linear layers
-   memory = {}
-   memory[0] = opt.batchSize * (#classes + opt.ncolors*opt.width^2) -- gradInput + output
+
+   -- Keeping track of memory usage
+   local memory = {}
+   memory[0] = opt.batchSize * (#classes + opt.ncolors*opt.width^2) -- gradInput + output (overhead)
    memory.submodel1 = {}
-   memory.submodel1[0] = opt.batchSize * opt.ncolors * opt.width^2 -- + output
+   memory.submodel1.val = {}
+   memory.submodel1.str = {}
+   memory.submodel1.val[0] = opt.batchSize * opt.ncolors * opt.width^2 -- + output
    memory.submodel2 = {}
+   memory.submodel2.val = {}
+   memory.submodel2.str = {}
 
    -- Dropout in the input space
    local dropout = {}
@@ -33,13 +42,15 @@ function get_model1()
       dropout[DOidx] = nn.Dropout(opt.inputDO)
       submodel1:add(dropout[DOidx])
       DOidx = DOidx + 1
-      table.insert(memory.submodel1,4 * opt.batchSize * opt.ncolors * opt.width^2)
+      table.insert(memory.submodel1.val,4 * opt.batchSize * opt.ncolors * opt.width^2)
+      table.insert(memory.submodel1.str,'Drp')
    end
 
    --transpose batch if cuda
    if opt.cuda then
       submodel1:add(nn.Transpose({1,4},{1,3},{1,2}))
-      table.insert(memory.submodel1,2 * opt.batchSize * opt.ncolors * opt.width^2)
+      table.insert(memory.submodel1.val,2 * opt.batchSize * opt.ncolors * opt.width^2)
+      table.insert(memory.submodel1.str,'Trn')
    end
 
    local mapsizes = {[0]=opt.width} --sizes of output of layers
@@ -78,27 +89,30 @@ function get_model1()
       convLayer.printable = true
       convLayer.text = 'Conv layer ' .. i
       submodel1:add(convLayer)
+
+      -- Computing memory usage
       local biasMem = 2*nFeatureMaps[i]
       local weightMem = nFeatureMaps[i]*nFeatureMaps[i - 1]*filterSize[i]^2
       weightMem = opt.cuda and 3*weightMem or 2*weightMem
       local gradInputMem = test_batch:size(1)*test_batch:size(2)*test_batch:size(3)*test_batch:size(4)
       local outputMem = r1:size(1)*r1:size(2)*r1:size(3)*r1:size(4)
-      table.insert(memory.submodel1, biasMem + weightMem + gradInputMem + outputMem)
+      table.insert(memory.submodel1.val, biasMem + weightMem + gradInputMem + outputMem)
+      table.insert(memory.submodel1.str,'Cnv')
 
       if opt.probe then
          submodel1:add(nn.Probe('Probing ' .. convLayer.text))
       end
 
       submodel1:add(nn.Threshold(0,0))
-      table.insert(memory.submodel1, 2 * outputMem)
+      table.insert(memory.submodel1.val, 2 * outputMem)
+      table.insert(memory.submodel1.str,'NL')
 
       if poolSize[i] > 1 then
          submodel1:add(poolLayer)
-         table.insert(memory.submodel1, outputMem + r2:size(1)*r2:size(2)*r2:size(3)*r2:size(4))
+         table.insert(memory.submodel1.val, outputMem + r2:size(1)*r2:size(2)*r2:size(3)*r2:size(4))
+         table.insert(memory.submodel1.str,'Pol')
       end
 
-      -- print(#convLayer.output)
-      -- print(#poolLayer.output)
       if opt.cuda then
          mapsizes[i] = poolLayer.output:size(2)
       else
@@ -121,22 +135,25 @@ function get_model1()
    --transpose batch if cuda
    if opt.cuda then
       submodel1:add(nn.Transpose({4,1},{4,2},{4,3}))
-      table.insert(memory.submodel1, 2 * r2:size(1)*r2:size(2)*r2:size(3)*r2:size(4))
+      table.insert(memory.submodel1.val, 2 * r2:size(1)*r2:size(2)*r2:size(3)*r2:size(4))
+      table.insert(memory.submodel1.str,'Trn')
    end
 
-   memory.submodel1[0] = memory.submodel1[0] + r2:size(1)*r2:size(2)*r2:size(3)*r2:size(4)
+   memory.submodel1.val[0] = memory.submodel1.val[0] + r2:size(1)*r2:size(2)*r2:size(3)*r2:size(4)
 
-   memory.submodel2[0] = r2:size(1)*r2:size(2)*r2:size(3)*r2:size(4) + opt.batchSize*#classes
+   memory.submodel2.val[0] = r2:size(1)*r2:size(2)*r2:size(3)*r2:size(4) + opt.batchSize*#classes
    --reshape
    submodel2:add(nn.Reshape(nHiddenNeurons[nConvLayers]))
-   table.insert(memory.submodel2, 2 * nHiddenNeurons[nConvLayers] * opt.batchSize)
+   table.insert(memory.submodel2.val, 2 * nHiddenNeurons[nConvLayers] * opt.batchSize)
+   table.insert(memory.submodel2.str,'Rsh')
 
    -- If dropout is not 0
    if opt.dropout > 0 then
       dropout[DOidx] = nn.Dropout(opt.dropout)
       submodel2:add(dropout[DOidx])
       DOidx = DOidx + 1
-   table.insert(memory.submodel2, 4 * nHiddenNeurons[nConvLayers] * opt.batchSize)
+      table.insert(memory.submodel2.val, 4 * nHiddenNeurons[nConvLayers] * opt.batchSize)
+      table.insert(memory.submodel2.str,'Drp')
    end
 
    --add linear layers
@@ -147,25 +164,30 @@ function get_model1()
       linear_layer.printable = true
       linear_layer.text = 'Linear layer ' .. i
       submodel2:add(linear_layer)
+
+      -- Computing memory usage
       local biasMem = 2 * nHiddenNeurons[nConvLayers + i]
       local weightMem = 2 * nHiddenNeurons[nConvLayers + i - 1] * nHiddenNeurons[nConvLayers + i]
       local gradInputMem = opt.batchSize * nHiddenNeurons[nConvLayers + i - 1]
       local outputMem = opt.batchSize * nHiddenNeurons[nConvLayers + i]
-      table.insert(memory.submodel2, biasMem + weightMem + gradInputMem + outputMem)
+      table.insert(memory.submodel2.val, biasMem + weightMem + gradInputMem + outputMem)
+      table.insert(memory.submodel2.str,'Lnr')
 
       if opt.probe then
-         submodel1:add(nn.Probe('Probing ' .. linear_layer.text))
+         submodel1.val:add(nn.Probe('Probing ' .. linear_layer.text))
       end
 
       submodel2:add(nn.Threshold(0, 0))
-      table.insert(memory.submodel2, 2 * outputMem)
+      table.insert(memory.submodel2.val, 2 * outputMem)
+      table.insert(memory.submodel2.str,'NL')
 
       -- If dropout is not 0
       if opt.dropout > 0 then
          dropout[DOidx] = nn.Dropout(opt.dropout)
          submodel2:add(dropout[DOidx])
          DOidx = DOidx + 1
-         table.insert(memory.submodel2, 4 * outputMem)
+         table.insert(memory.submodel2.val, 4 * outputMem)
+         table.insert(memory.submodel2.str,'Drp')
       end
 
       --get layer sizes
@@ -181,24 +203,22 @@ function get_model1()
    outputLayer.printable = true
    outputLayer.text = 'Output layer'
    submodel2:add(outputLayer)
+
+   -- Computing memory usage
    local biasMem = 2 * #classes
    local weightMem = 2 * nHiddenNeurons[#nHiddenNeurons] * #classes
    local gradInputMem = opt.batchSize * nHiddenNeurons[#nHiddenNeurons]
    local outputMem = opt.batchSize * #classes
-   table.insert(memory.submodel2, biasMem + weightMem + gradInputMem + outputMem)
+   table.insert(memory.submodel2.val, biasMem + weightMem + gradInputMem + outputMem)
+   table.insert(memory.submodel2.str,'Lnr')
 
    if opt.probe then
-      submodel1:add(nn.Probe('Probing output layer'))
+      submodel1.val:add(nn.Probe('Probing output layer'))
    end
    --log probabilities
    submodel2:add(nn.LogSoftMax())
-   table.insert(memory.submodel2, 2 * outputMem)
-
-   function inMB(mem)
-      mem[0]=mem[0]*4/1024^2
-      for a,b in pairs(mem.submodel1) do memory.submodel1[a] = b*4/1024^2 end
-      for a,b in pairs(mem.submodel2) do memory.submodel2[a] = b*4/1024^2 end
-   end
+   table.insert(memory.submodel2.val, 2 * outputMem)
+   table.insert(memory.submodel2.str,'SM')
 
    --add submodels to model
    model:add(submodel1)
@@ -235,10 +255,11 @@ function get_model1()
 
 
    --print(model.modules)
-   return model, loss, dropout
+   return model, loss, dropout, memory
 
 end
 
+-- Useful functions for <get_model2> -------------------------------------------
 -- Iterative function definition for recovering the dropout table
 local function assignDropout(dropoutTable,module)
    if module.__typename == 'nn.Dropout' then
@@ -255,6 +276,7 @@ function recoverDropoutTable(dropoutTable,network)
    end
 end
 
+-- Load model from file --------------------------------------------------------
 function get_model2(networkFile)
 
    -- Load model from file

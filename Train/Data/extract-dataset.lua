@@ -22,9 +22,6 @@ opt.jitter = 0
 global_mean = torch.Tensor(3):fill(0)
 global_std = torch.Tensor(3):fill(1)
 
-
-print(opt.height)
-
 dofile('data-imagenet.lua')
 
 data_folder = eex.datasetsPath() .. 'originalDataset/'
