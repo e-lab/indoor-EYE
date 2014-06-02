@@ -19,12 +19,12 @@ if opt.cuda then
 end
 
 local weightsBackup = {}
-local confBackup = {}
+local topBackup = {}
 
 local trainTestTime   = {}
 local w, dE_dw
 
-function train(data, model, loss, dropout, confusion_matrix, top5)
+function train(data, model, loss, dropout, top5)
    --train one iteration
 
    local nbThread = opt.mm_threads
@@ -46,8 +46,8 @@ function train(data, model, loss, dropout, confusion_matrix, top5)
    weightsBackup[1]:copy(w)
    weightsBackup[2]:copy(w)
    local ceBackup = {0, 0}
-   confBackup[1]:zero()
-   confBackup[2]:zero()
+   topBackup[1]:zero()
+   topBackup[2]:zero()
 
    trainTestTime.tmpLoading = 0
    trainTestTime.tmpCuda = 0
@@ -61,7 +61,7 @@ function train(data, model, loss, dropout, confusion_matrix, top5)
          if (t%10 == 0) then
             weightsBackup[olderBack]:copy(w)
             ceBackup[olderBack] = ce_train_error
-            confBackup[olderBack].mat:copy(confusion_matrix.mat)
+            topBackup[olderBack].mat:copy(top5.mat)
             olderBack = 3 - olderBack
          end
 
@@ -76,15 +76,15 @@ function train(data, model, loss, dropout, confusion_matrix, top5)
       else
          if (consecutiveFailures == 1) then
             w:copy(weightsBackup[3 - olderBack])
-            confusion_matrix.mat:copy(confBackup[3 - olderBack].mat)
+            top5.mat:copy(topBackup[3 - olderBack].mat)
             ce_train_error = ceBackup[3 - olderBack]
          else
             w:copy(weightsBackup[olderBack])
             ce_train_error = ceBackup[olderBack]
-            confusion_matrix.mat:copy(confBackup[olderBack].mat)
+            top5.mat:copy(topBackup[olderBack].mat)
             weightsBackup[3 - olderBack]:copy(weightsBackup[olderBack])
             ceBackup[3 - olderBack] = ceBackup[olderBack]
-            confBackup[3 - olderBack].mat:copy(confBackup[olderBack].mat)
+            topBackup[3 - olderBack].mat:copy(topBackup[olderBack].mat)
          end
       end
 
@@ -121,10 +121,6 @@ function train(data, model, loss, dropout, confusion_matrix, top5)
 
          -- Update confusion matrix
          local y = model:forward(ims)
-         for i = 1, opt.batchSize do
-            confusion_matrix:add(y[i], targets[i])
-         end
-
          top5:batchAdd(y, targets)
          -- Switching back on the dropout
          if opt.dropout > 0 or opt.inputDO > 0 then
@@ -164,7 +160,7 @@ function train(data, model, loss, dropout, confusion_matrix, top5)
    end
 end
 
-function test(data, model, loss, dropout, confusion_matrix, top5)
+function test(data, model, loss, dropout, top5)
 
    local nbThread = opt.mm_threads
    data.newShuffle()
@@ -192,17 +188,10 @@ function test(data, model, loss, dropout, confusion_matrix, top5)
 
       -- test sample
       local preds = model:forward(ims)
-
-      -- confusion
-      for i = 1, opt.batchSize do
-
-         confusion_matrix:add(preds[i], targets[i])
-         local E = loss:forward(preds[i], targets[i])
-         ce_test_error = ce_test_error + E
-
-      end
+      local E = loss:forward(preds, targets)
 
       top5:batchAdd(preds, targets)
+      ce_test_error = ce_test_error + E
    end
 
    -- Switching back on the dropout
@@ -212,7 +201,7 @@ function test(data, model, loss, dropout, confusion_matrix, top5)
       end
    end
 
-   ce_test_error = ce_test_error / (data.nBatches * opt.batchSize)
+   ce_test_error = ce_test_error / data.nBatches
 
 end
 
@@ -341,67 +330,18 @@ function checkWeight(model, logMin, logMax, logAvg, logStd, logGwsMin, logGwsMax
    return NaNOk
 end
 
---reduced version of optim.ConfusionMatrix:__tostring__
-function print_confusion_matrix(self, init_str)
-
-   self:updateValids()
-   local str = {init_str}
-
-   if opt.print_confusion_matrix then
-
-      str = {init_str .. ' ConfusionMatrix:\n'}
-      local nclasses = self.nclasses
-      table.insert(str, '[')
-      for t = 1,nclasses do
-         local pclass = self.valids[t] * 100
-         pclass = string.format('%6.3f', pclass)
-         if t == 1 then
-            table.insert(str, '[')
-         else
-            table.insert(str, ' [')
-         end
-         for p = 1,nclasses do
-            table.insert(str, string.format('%' .. opt.confusion_matrix_tab .. 'd', self.mat[t][p]))
-         end
-         if self.classes and self.classes[1] then
-            if t == nclasses then
-               table.insert(str, ']]  ' .. pclass .. '%  [class: ' .. (self.classes[t] or '') .. ']\n')
-            else
-               table.insert(str, ']   ' .. pclass .. '%  [class: ' .. (self.classes[t] or '') .. ']\n')
-            end
-         else
-            if t == nclasses then
-               table.insert(str, ']] ' .. pclass .. '% \n')
-            else
-               table.insert(str, ']   ' .. pclass .. '% \n')
-            end
-         end
-      end
-
-
-   end
-
-   table.insert(str, string.format(' accuracy: %.3f', self.totalValid*100) .. '%')
-   print(table.concat(str))
-
-end
-
 function train_and_test(trainData, testData, model, loss, plot, verbose, dropout)
 
    w, dE_dw = model:getParameters()
 
    --init confusion matricies
-   local train_confusion = optim.ConfusionMatrix(classes)
-   local test_confusion = optim.ConfusionMatrix(classes)
    local train_top5 = TopAcc(#classes, 5)
    local test_top5 = TopAcc(#classes, 5)
-   train_confusion:zero()
-   test_confusion:zero()
    train_top5:zero()
    test_top5:zero()
 
-   confBackup[1] = optim.ConfusionMatrix(classes)
-   confBackup[2] = optim.ConfusionMatrix(classes)
+   topBackup[1] = TopAcc(#classes, 5)
+   topBackup[2] = TopAcc(#classes, 5)
 
    --set optimization parameters
    optimState = {
@@ -426,83 +366,82 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
       epochInit = tonumber(string.match(opt.network, "%d+"))
       epoch = epochInit + 1
 
-      -- (2) load tmp files
+      -- (2) create tmp tables
+      local tmpAcc = {}
+      local tmpCE = {}
+      local tmpAcc5 = {}
       if (paths.filep(opt.save_dir .. 'accuracy.log')) then
-         os.execute("mv " .. opt.save_dir .. 'accuracy.log '.. opt.save_dir .. '.acc.tmp')
+         local file = io.open(opt.save_dir .. 'accuracy.log', r)
+         local tmpVal = file:read("*line")  -- skip the header
+         for ep = 1, epochInit do
+            tmpVal = file:read("*number")  -- train
+            table.insert(tmpAcc, tmpVal)
+            tmpVal = file:read("*number")  -- test
+            table.insert(tmpAcc, tmpVal)
+         end
+         io.close(file)
       end
       if (paths.filep(opt.save_dir .. 'cross-entropy.log')) then
-         os.execute("mv " .. opt.save_dir .. 'cross-entropy.log '.. opt.save_dir .. '.ce.tmp')
+         local file = io.open(opt.save_dir .. 'cross-entropy.log', r)
+         local tmpVal = file:read("*line")  -- skip the header
+         for ep = 1, epochInit do
+            tmpVal = file:read("*number")  -- train
+            table.insert(tmpCE, tmpVal)
+            tmpVal = file:read("*number")  -- test
+            table.insert(tmpCE, tmpVal)
+         end
+         io.close(file)
       end
-
-      -- (3) open files
-      local acc = io.open(opt.save_dir .. '.acc.tmp', r)
-      local ce = io.open(opt.save_dir .. '.ce.tmp', r)
-
-      local epochInit = 0
-      local epoch = 1
-      local prevTestAcc = 0
-      if opt.network ~= 'N/A' then
-         -- (1) get the number of the epoch
-         epochInit = tonumber(string.match(opt.network, "%d+"))
-         epoch = epochInit + 1
-
-         -- (2) create tmp tables
-         local tmpAcc = {}
-         local tmpCE = {}
-         local tmpAcc5 = {}
-         if (paths.filep(opt.save_dir .. 'accuracy.log')) then
-            local file = io.open(opt.save_dir .. 'accuracy.log', r)
-            local tmpVal = acc:read("*line")  -- skip the header
-            for ep = 1, epochInit do
-               tmpVal = file:read("*number")  -- train
-               table.insert(tmpAcc, tmpVal)
-               tmpVal = file:read("*number")  -- test
-               table.insert(tmpAcc, tmpVal)
-            end
-            io.close(file)
-         end
-         if (paths.filep(opt.save_dir .. 'cross-entropy.log')) then
-            local file = io.open(opt.save_dir .. 'cross-entropy.log', r)
-            local tmpVal = acc:read("*line")  -- skip the header
-            for ep = 1, epochInit do
-               tmpVal = file:read("*number")  -- train
-               table.insert(tmpCE, tmpVal)
-               tmpVal = file:read("*number")  -- test
-               table.insert(tmpCE, tmpVal)
-            end
-            io.close(file)
-         end
-         if (paths.filep(opt.save_dir .. 'accuracy-5.log')) then
-            local file = io.open(opt.save_dir .. 'accuracy-5.log', r)
-            local tmpVal = acc:read("*line")  -- skip the header
-            for ep = 1, epochInit do
+      if (paths.filep(opt.save_dir .. 'accuracy-5.log')) then
+         local file = io.open(opt.save_dir .. 'accuracy-5.log', r)
+         local tmpVal = file:read("*line")  -- skip the header
+         for ep = 1, epochInit do
+            for log = 1, 3 do
                tmpVal = file:read("*number")  -- train
                table.insert(tmpAcc5, tmpVal)
                tmpVal = file:read("*number")  -- test
                table.insert(tmpAcc5, tmpVal)
             end
-            io.close(file)
          end
+         io.close(file)
       end
 
       -- (3) init loggers
       logger = optim.Logger(opt.save_dir .. 'accuracy.log')
       ce_logger = optim.Logger(opt.save_dir .. 'cross-entropy.log')
       logger_5 = optim.Logger(opt.save_dir .. 'accuracy-5.log')
+      logger_5:setNames({'% train top1', '% test top1',
+      '% train top3', '% test top3',
+      '% train top5', '% test top5'})
 
       -- (4) load backup data
       for ep = 1, epochInit do
-         logger:add{['% train accuracy'] = tmpAcc[2*ep - 1], ['% test accuracy'] = tmpAcc[2*ep]}
-         ce_logger:add{['ce train error'] = tmpCE[2*ep - 1], ['ce test error'] = tmpCE[2*ep]}
-         logger_5:add{['% train 5-accuracy'] = tmpAcc5[2*ep - 1], ['% test 5-accuracy'] = tmpAcc5[2*ep]}
+         logger:add{['% train accuracy'] = tmpAcc[2*ep-1], ['% test accuracy'] = tmpAcc[2*ep]}
+         ce_logger:add{['ce train error'] = tmpCE[2*ep-1], ['ce test error'] = tmpCE[2*ep]}
+         logger_5:add{tmpAcc5[6*ep-5], tmpAcc5[6*ep-4],
+         tmpAcc5[6*ep-3], tmpAcc5[6*ep-2],
+         tmpAcc5[6*ep-1], tmpAcc5[6*ep]}
       end
 
-      -- (7) backup previous accuracy
-      prevTestAcc = tmpAcc[#tmpAc]/100
+      -- (5) plot
+      if plot then
+         logger:style{['% train accuracy'] = '-', ['% test accuracy'] = '-'}
+         logger:plot()
+         ce_logger:style{['ce train error'] = '-', ['ce test error'] = '-'}
+         ce_logger:plot()
+         logger_5:style{'-', '-', '-', '-', '-', '-'}
+         logger_5:plot()
+      end
+
+      -- (6) backup previous accuracy
+      prevTestAcc = tmpAcc[#tmpAcc]/100
    else
       logger = optim.Logger(opt.save_dir .. 'accuracy.log')
       ce_logger = optim.Logger(opt.save_dir .. 'cross-entropy.log')
-      logger_5 = optim.Logger(opt.save_dir .. 'accuracy_5.log')
+      logger_5 = optim.Logger(opt.save_dir .. 'accuracy-5.log')
+      logger_5:setNames({'% train top1', '% test top1',
+      '% train top3', '% test top3',
+      '% train top5', '% test top5'})
    end
 
    --init train and test time
@@ -547,7 +486,7 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
       --train
       sys.tic()
       if verbose then print('==> Train ' .. epoch) end
-      trainedSuccessfully, nbFailures = train(trainData, model, loss, dropout, train_confusion, train_top5)
+      trainedSuccessfully, nbFailures = train(trainData, model, loss, dropout, train_top5)
       local time = sys.toc()
 
       -------------------------------------------------------------------------------
@@ -563,11 +502,11 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
          sys.tic()
          ce_test_error = 0
          if verbose then print('==> Test ' .. epoch) end
-         test(testData, model, loss, dropout, test_confusion, test_top5)
+         test(testData, model, loss, dropout, test_top5)
          timeTest = sys.toc()
-         test_confusion:updateValids()
+         test_top5:update()
 
-         trainedSuccessfully = test_confusion.totalValid >  0.5 * prevTestAcc
+         trainedSuccessfully = test_top5.result[1] >  0.5 * prevTestAcc
       end
 
       -- (3) if every thing is good the procced
@@ -593,8 +532,8 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
             if nbFailures > 0 then
                print(sys.COLORS.red .. "======> Number of failures:" ..  nbFailures)
             end
-
-            print_confusion_matrix(train_confusion, '======> Train')
+            train_top5:update()
+            print(string.format('======> Train accuray %.3f', train_top5.result[1]*100))
             print()
          end
 
@@ -606,17 +545,17 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
             print(string.format("======> Time to test 1 iteration = %.2f sec", timeTest))
             print(string.format("======> Time to test 1 sample = %.2f ms", timeTest / (opt.batchSize * testData.nBatches) *  1000))
             print(string.format("======> Test CE error: %.2f", ce_test_error))
-            print_confusion_matrix(test_confusion, '======> Test')
+            test_top5:update()
+            print(string.format('======> Test accuray %.3f', test_top5.result[1]*100))
             print()
          end
 
          -- (5) update loggers
-         train_confusion:updateValids()
-         logger:add{['% train accuracy'] = train_confusion.totalValid * 100, ['% test accuracy'] = test_confusion.totalValid * 100}
+         logger:add{['% train accuracy'] = train_top5.result[1] * 100, ['% test accuracy'] = test_top5.result[1] * 100}
          ce_logger:add{['ce train error'] = ce_train_error, ['ce test error'] = ce_test_error}
-         train_top5:update()
-         test_top5:update()
-         logger_5:add{['% train 5-accuracy'] = train_top5.result[5] * 100, ['% test 5-accuracy'] = test_top5.result[5] * 100}
+         logger_5:add{train_top5.result[1] * 100,test_top5.result[1] * 100,
+         train_top5.result[3] * 100, test_top5.result[3] * 100,
+         train_top5.result[5] * 100, test_top5.result[5] * 100}
 
          --plot
          if plot then
@@ -624,7 +563,7 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
             logger:plot()
             ce_logger:style{['ce train error'] = '-', ['ce test error'] = '-'}
             ce_logger:plot()
-            logger_5:style{['% train 5-accuracy'] = '-', ['% test 5-accuracy'] = '-'}
+            logger_5:style{'-', '-', '-', '-', '-', '-'}
             logger_5:plot()
          end
 
@@ -651,9 +590,7 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
          end
 
          -- Save last accuracy before zeroing
-         prevTestAcc = test_confusion.totalValid
-         train_confusion:zero()
-         test_confusion:zero()
+         prevTestAcc = test_top5.result[1]
          train_top5:zero()
          test_top5:zero()
 
@@ -664,7 +601,7 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
          print(sys.COLORS.red .. '>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<')
          print(sys.COLORS.red .. '>>>> Drop in testing > 50% <<<<')
          print(sys.COLORS.red .. '>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<')
-         print(test_confusion.totalValid ,'\n')
+         print(test_top5.result[1] ,'\n')
          -- (1) reset weights
          w:copy(weightsBackup)
       end
