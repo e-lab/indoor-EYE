@@ -103,14 +103,11 @@ function get_model1()
          submodel1:add(nn.Probe('Probing ' .. convLayer.text))
       end
 
-      submodel1:add(nn.Threshold(0,0))
-      table.insert(memory.submodel1.val, 2 * outputMem)
-      table.insert(memory.submodel1.str,'NL')
-
       if poolSize[i] > 1 then
          submodel1:add(poolLayer)
          table.insert(memory.submodel1.val, outputMem + r2:size(1)*r2:size(2)*r2:size(3)*r2:size(4))
          table.insert(memory.submodel1.str,'Pol')
+         outputMem = r2:size(1)*r2:size(2)*r2:size(3)*r2:size(4)
       end
 
       if opt.cuda then
@@ -130,6 +127,9 @@ function get_model1()
          nHiddenNeurons[i] = poolLayer.output:size(3) * poolLayer.output:size(4) * nFeatureMaps[i]
       end
 
+      submodel1:add(nn.Threshold(0,0))
+      table.insert(memory.submodel1.val, 2 * outputMem)
+      table.insert(memory.submodel1.str,'NL')
    end
 
    --transpose batch if cuda
