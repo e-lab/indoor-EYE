@@ -17,7 +17,7 @@ function load_data_mm(data_file, info_file)
    local offsets_p     = tonumber(torch.data(dataset.info.offsets, true))
    local sizes_p       = tonumber(torch.data(dataset.info.sizes, true))
    local labels_p      = tonumber(torch.data(dataset.info.labels, true))
-   local file_number_p = tonumber(torch.data(dataset.info.file_number, true))
+   local file_number_p
 
    -- (1.2) shuffle tensor
    dataset.shuffle = torch.randperm(nSamples):type('torch.LongTensor')
@@ -57,9 +57,11 @@ function load_data_mm(data_file, info_file)
       jpegs_p = torch.LongTensor(nbFile)
       dataset.jpegs[1] = torch.ByteStorage(data_file)
       jpegs_p[1] = tonumber(torch.data(dataset.jpegs[1], true))
+      dataset.info.file_number = torch.IntTensor(nSamples):fill(1)
    end
    local jpegs_pp = tonumber(torch.data(jpegs_p, true))
 
+   file_number_p = tonumber(torch.data(dataset.info.file_number, true))
    -- (1.6) jitter tensor
    dataset.jitter = torch.IntTensor(nSamples):random(10):add(-1)
    local jitter_p = tonumber(torch.data(dataset.jitter, true))
