@@ -5,10 +5,10 @@
 
 -- Options ---------------------------------------------------------------------
 opt = {}
-opt.width          = 128
+opt.width          = 223
 opt.cuda           = true
 opt.ncolors        = 3
-opt.subsample_name = 'indoor51'
+opt.subsample_name = 'imagenet'
 opt.dropout        = 0.5
 opt.inputDO        = 0.2
 opt.step           = false
