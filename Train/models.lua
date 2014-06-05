@@ -241,7 +241,7 @@ function get_model1()
    end
 
    -- Creates dummy file for plotting
-   pltStat = io.open('/tmp/netStat.dat','w+')
+   pltStat = io.open('.pltStatData','w+')
    pltStat:write('#Layer\tParam\n')
 
    --print sizes of nConvLayers
@@ -271,8 +271,8 @@ function get_model1()
    io.close(pltStat)
    os.execute [[gnuplot -e "
       set term dumb 170 50;
-      p '/tmp/netStat.dat' u 0:2:xtic(1) w boxes t 'parameters'
-      "]]
+      p './.pltStatData' u 0:2:xtic(1) w boxes t 'parameters'
+      " | tee .pltStat]]
 
    -- Evaluate network's weight
    local w = model:getParameters()

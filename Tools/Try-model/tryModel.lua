@@ -46,10 +46,14 @@ if step then
    io.write('Requiring model')
    io.read()
 end
-statFile = io.open('/tmp/temp','w')
+statFile = io.open('.stat','w+')
 require 'models'
 
 model, loss, dropout, memory = get_model1()
+
+io.close(statFile)
+io.read()
+os.execute('rm .stat .pltStat .pltStatData')
 
 if opt.memMB then
    -- Conversion function ---------------------------------------------------------

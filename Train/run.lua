@@ -196,6 +196,10 @@ function run(trainData, testData)
    local model, loss, dropout
    if opt.network == 'N/A' then
       model, loss, dropout = get_model1() --(classifier.lua)
+      local tmpFile = io.open('/tmp/pltStat', 'r')
+      statFile:write(tmpFile:read('*all'))
+      io.close(tmpFile)
+      os.execute('rm .pltStat .pltStatData')
    else
       print('Loading network from file: ' .. opt.network)
       model, loss, dropout = get_model2(opt.network)
