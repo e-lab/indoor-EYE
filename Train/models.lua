@@ -55,7 +55,7 @@ function get_model1()
 
    local mapsizes = {[0]=opt.width} --sizes of output of layers
    local nConnections = {[0]=0} --number of connections between i-th and (i-1) layer
-   local nUniqueWeights = {[0] = 0} --number of hidden units in layer i
+   local trainParam = {[0] = 0} --number of hidden units in layer i
    local nHiddenNeurons = {[0] = opt.width^2 * opt.ncolors} --number of output units in layer i
    local r1, r2
 
@@ -115,11 +115,12 @@ function get_model1()
       else
          mapsizes[i] = poolLayer.output:size(3)
       end
-      nUniqueWeights[i] = convLayer.weight:size(1) * convLayer.weight:size(2)
+      trainParam[i] = convLayer.weight:size(1) * convLayer.weight:size(2)
       if opt.cuda then
-         nUniqueWeights[i] = nUniqueWeights[i] * convLayer.weight:size(3) * convLayer.weight:size(4)
+         trainParam[i] = trainParam[i] * convLayer.weight:size(3) * convLayer.weight:size(4)
       end
-      nConnections[i] = nUniqueWeights[i] * ((mapsizes[i - 1] - filterSize[i] + 1) / convStride[i]) ^ 2
+      trainParam[i] = trainParam[i] + nFeatureMaps[i]
+      nConnections[i] = trainParam[i] * ((mapsizes[i - 1] - filterSize[i] + 1) / convStride[i]) ^ 2
 
       if opt.cuda then
          nHiddenNeurons[i] = poolLayer.output:size(2) * poolLayer.output:size(3) * nFeatureMaps[i]
@@ -192,7 +193,7 @@ function get_model1()
 
       --get layer sizes
       mapsizes[nConvLayers + i] = 1
-      nUniqueWeights[nConvLayers + i] = neuronsPerLinearLayer[i]
+      trainParam[nConvLayers + i] = nHiddenNeurons[nConvLayers + i - 1] * nHiddenNeurons[nConvLayers + i]
       nConnections[nConvLayers + i] = nHiddenNeurons[nConvLayers + i - 1] * nHiddenNeurons[nConvLayers + i]
       nFeatureMaps[nConvLayers + i] = 1
 
@@ -203,6 +204,13 @@ function get_model1()
    outputLayer.printable = true
    outputLayer.text = 'Output layer'
    submodel2:add(outputLayer)
+
+   -- Get output layer size
+   table.insert(mapsizes, 1)
+   table.insert(trainParam, nHiddenNeurons[#nHiddenNeurons] * #classes)
+   table.insert(nConnections, trainParam[#trainParam])
+   table.insert(nFeatureMaps, 1)
+   table.insert(nHiddenNeurons, #classes)
 
    -- Computing memory usage
    local biasMem = 2 * #classes
@@ -232,27 +240,44 @@ function get_model1()
       loss:cuda()
    end
 
+   -- Creates dummy file for plotting
+   pltStat = io.open('/tmp/netStat.dat','w+')
+   pltStat:write('#Layer\tParam\n')
+
    --print sizes of nConvLayers
    statFile:write('\n==> Network model\n')
-   for i = 0, nConvLayers + #neuronsPerLinearLayer do
+   for i = 0, nConvLayers + #neuronsPerLinearLayer + 1 do
 
       if i == 0 then filterSize[0] = 0
       elseif filterSize[i] == nil then filterSize[i] = 1 end
 
       local s = string.format(
-      '==> model layer %2d  -  filter size: %2d  |  spatial extent: %3dx%3d  |  feature maps: %3d  |  hidden neurons: %6d  |  unique weights: %5d  |  connections: %9d\n',
-      i, filterSize[i], mapsizes[i], mapsizes[i], nFeatureMaps[i], nHiddenNeurons[i], nUniqueWeights[i], nConnections[i]
+      '==> model layer %2d  -  filter size: %2d  |  spatial extent: %3dx%3d  |  feature maps: %3d  |  hidden neurons: %6d  |  parameters: %6d  |  connections: %9d\n',
+      i, filterSize[i], mapsizes[i], mapsizes[i], nFeatureMaps[i], nHiddenNeurons[i], trainParam[i], nConnections[i]
       )
       if opt.verbose then io.write(s) end
       statFile:write(s)
       statFile:flush()
 
+      -- Log model size and stat
+      if i>0 and i<= nConvLayers then
+         pltStat:write(string.format('Conv-%d\t%d\n',i,trainParam[i]))
+      elseif i > nConvLayers then
+         pltStat:write(string.format('MLP-%d\t%d\n',i-nConvLayers,trainParam[i]))
+      end
+
    end
+
+   io.close(pltStat)
+   os.execute [[gnuplot -e "
+      set term dumb 170 50;
+      p '/tmp/netStat.dat' u 0:2:xtic(1) w boxes t 'parameters'
+      "]]
 
    -- Evaluate network's weight
    local w = model:getParameters()
-   print(string.format("The network's weights weight %0.2f MB", w:size(1)*4/1024^2))
-
+   memory.parameters = w:size(1)
+   print('This is a ' .. memory.parameters .. '-parameters network')
 
    --print(model.modules)
    return model, loss, dropout, memory
