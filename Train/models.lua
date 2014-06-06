@@ -252,7 +252,7 @@ function get_model1()
       elseif filterSize[i] == nil then filterSize[i] = 1 end
 
       local s = string.format(
-      '==> model layer %2d  -  filter size: %2d  |  spatial extent: %3dx%3d  |  feature maps: %3d  |  hidden neurons: %6d  |  parameters: %6d  |  connections: %9d\n',
+      '==> model layer %2d  -  filter size: %2d  |  spatial extent: %3dx%3d  |  feature maps: %3d  |  hidden neurons: %6d  |  parameters: %7d  |  connections: %9d\n',
       i, filterSize[i], mapsizes[i], mapsizes[i], nFeatureMaps[i], nHiddenNeurons[i], trainParam[i], nConnections[i]
       )
       if opt.verbose then io.write(s) end
@@ -277,7 +277,9 @@ function get_model1()
    -- Evaluate network's weight
    local w = model:getParameters()
    memory.parameters = w:size(1)
-   print('This is a ' .. memory.parameters .. '-parameters network')
+   local str = 'This is a ' .. memory.parameters .. '-parameters network\n'
+   if opt.verbose then io.write(str) end
+   statFile:write(str); statFile:flush()
 
    --print(model.modules)
    return model, loss, dropout, memory

@@ -52,8 +52,10 @@ require 'models'
 model, loss, dropout, memory = get_model1()
 
 io.close(statFile)
+io.write('\nTemporary files will be deleted now. Press <Return> ')
 io.read()
 os.execute('rm .stat .pltStat .pltStatData')
+print(' > Temporary files removed\n')
 
 if opt.memMB then
    -- Conversion function ---------------------------------------------------------
