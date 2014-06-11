@@ -58,45 +58,38 @@ function load_data(data_file, info_file, sfile, fact)
    --here loaded data is stored
    local dataset = {}
 
-   if fact == 'load' and paths.filep(opt.temp_dir .. sfile) then
+   if paths.filep(opt.temp_dir .. sfile) then
       --load previously saved data
 
       local f = opt.temp_dir .. sfile
       print('======> Loading previously saved data from file ' .. f)
-      dataset = torch.load(f)
+      dataset.data = torch.load(f)
+   end
+   -------------------------------------------------------------------------------
+   --define sizes
 
-   else
+   local w = opt.width  --final data width
+   local h = opt.height --final data height
 
-      -------------------------------------------------------------------------------
-      --define sizes
+   local sw = opt.width --stored data width
+   local sh = opt.height --stored data height
 
-      local w = opt.width  --final data width
-      local h = opt.height --final data height
-
-      local sw = opt.width --stored data width
-      local sh = opt.height --stored data height
-
-      if opt.parts then
-         --store big images
-         sw = 128
-         sh = 128
-      end
-
-      if opt.jitter > 0 and not opt.parts then
-         --store larger images in case of jitter
-         sw = sw + opt.jitter
-         sh = sh + opt.jitter
-      end
-      -------------------------------------------------------------------------------
-      --load and decompress images
+   if opt.jitter > 0 then
+      --store larger images in case of jitter
+      sw = sw + opt.jitter
+      sh = sh + opt.jitter
+   end
+   -------------------------------------------------------------------------------
+   --load and decompress images
+   local dataset_info = torch.load(info_file) --data from info_file: labels, image sizes and offsets
+   if (not dataset.data) then
 
       print('=====> Loading info data from file: ' .. info_file)
-      local dataset = torch.load(info_file) --data from info_file: labels, image sizes and offsets
       local jpegs = {}
       local jpegs_p = {}
 
-      if (dataset.file_range) then
-         number_file = dataset.file_range:size(1)
+      if (dataset_info.file_range) then
+         number_file = dataset_info.file_range:size(1)
          for file = 1, number_file do
             jpegs[file] = torch.ByteStorage(data_file .. '-file' .. file .. '.t7')
             jpegs_p[file] = ffi.cast('unsigned char *', ffi.cast('intptr_t', torch.data(jpegs[file])))
@@ -104,18 +97,15 @@ function load_data(data_file, info_file, sfile, fact)
       else
          jpegs[1] = torch.ByteStorage(data_file) --compressed images
          jpegs_p[1] = ffi.cast('unsigned char *', ffi.cast('intptr_t', torch.data(jpegs[1])))
-         dataset.data_p[1] = tonumber(ffi.cast('intptr_t', torch.data(dataset.data[1])))
       end
 
-      local offsets_p = ffi.cast('unsigned long *', ffi.cast('intptr_t', torch.data(dataset.offsets)))
-      local sizes_p   = ffi.cast('unsigned long *', ffi.cast('intptr_t', torch.data(dataset.sizes)))
-      local file_number_p = ffi.cast('unsigned int *', ffi.cast('intptr_t', torch.data(dataset.file_number)))
+      local offsets_p = ffi.cast('unsigned long *', ffi.cast('intptr_t', torch.data(dataset_info.offsets)))
+      local sizes_p   = ffi.cast('unsigned long *', ffi.cast('intptr_t', torch.data(dataset_info.sizes)))
+      local file_number_p = ffi.cast('unsigned int *', ffi.cast('intptr_t', torch.data(dataset_info.file_number)))
       local gm = require 'graphicsmagick'
 
-      local n = dataset.labels:size(1)
-      data.data = torch.FloatTensor(n, opt.ncolors, sh, sw) --stored images
-      data.labels = torch.Tensor(n)
-      data.imagenet_labels = torch.Tensor(n)
+      local n = dataset_info.labels:size(1)
+      dataset.data = torch.FloatTensor(n, opt.ncolors, sh, sw) --stored images
 
       print('=====> Loading and decompressing jpegs from file: ' .. data_file)
       for i = 1, n do
@@ -146,35 +136,61 @@ function load_data(data_file, info_file, sfile, fact)
             im[j]:div(global_std[j])
          end
 
-         data.data[i] = im
+         dataset.data[i] = im
 
       end
+   end
 
-      data.classes = dataset.classes
-      data.labels = dataset.labels --subsample label id
-      data.imagenet_labels = dataset.imagenet_labels --original imagenet label
+   dataset.labels = dataset_info.labels --subsample label id
 
-      if fact == 'save' then
-         --save data
-
-         local f = opt.temp_dir .. sfile
-         print('======> saving data to file ' .. f)
-         torch.save(f, data)
-
-      end
-
+   if not paths.filep(opt.temp_dir .. sfile) then
+      local f = opt.temp_dir .. sfile
+      print('======> saving data to file ' .. f)
+      torch.save(f, dataset.data)
    end
    -------------------------------------------------------------------------------
 
-   local n = data.labels:size(1)
-   dataset.shuffle = torch.randperm(n):type('torch.LongTensor')
-   data.keep = {
-      shuffle = shuffle,
-      samples = samples,
-      targets = targets
-   }
+   dataset.nbSamples = dataset.labels:size(1)
+   dataset.shuffle = torch.randperm(dataset.nbSamples):type('torch.LongTensor')
+   dataset.jitter  = torch.IntTensor(dataset.nbSamples):random(10):add(-1)
 
-   local function prepareBatch(idx, istest)
+   local extract_jitter = {}
+   extract_jitter[0] = function (img, height, width, jitter)
+      return img[{{}, {1, height}, {1, width}}]
+   end
+   extract_jitter[1] = function (img, height, width, jitter)
+      return img[{{}, {1, height}, {1 + jitter, width + jitter}}]
+   end
+   extract_jitter[2] = function (img, height, width, jitter)
+      return img[{{}, {1 + jitter, height + jitter}, {1 + jitter, width + jitter}}]
+   end
+   extract_jitter[3] = function (img, height, width, jitter)
+      return img[{{}, {1 + jitter, height + jitter}, {1, width}}]
+   end
+   extract_jitter[4] = function (img, height, width, jitter)
+      local halfJitter = math.floor(jitter/2)
+      return img[{{}, {1 + halfJitter, height + halfJitter}, {1 + halfJitter, width + halfJitter}}]
+   end
+   extract_jitter[5] = function (img, height, width, jitter)
+      return image.hflip(img[{{}, {1, height}, {1, width}}])
+   end
+   extract_jitter[6] = function (img, height, width, jitter)
+      return image.hflip(img[{{}, {1, height}, {1 + jitter, width + jitter}}])
+   end
+   extract_jitter[7] = function (img, height, width, jitter)
+      return image.hflip(img[{{}, {1 + jitter, height + jitter}, {1 + jitter, width + jitter}}])
+   end
+   extract_jitter[8] = function (img, height, width, jitter)
+      return image.hflip(img[{{}, {1 + jitter, height + jitter}, {1, width}}])
+   end
+   extract_jitter[9] = function (img, height, width, jitter)
+      local halfJitter = math.floor(jitter/2)
+      return image.hflip(img[{{}, {1 + halfJitter, height + halfJitter}, {1 + halfJitter, width + halfJitter}}])
+   end
+   dataset.extract_jitter = extract_jitter
+
+
+   dataset.prepareBatch = function(idx, istest)
       -- prepare next batch
 
       local bs = opt.batchSize
@@ -182,47 +198,35 @@ function load_data(data_file, info_file, sfile, fact)
       for i = 1, bs do
 
          local j = dataset.shuffle[(idx - 1) * bs + i]
-         local x1 = 1
-         local y1 = 1
+         local h = opt.height
+         local w = opt.width
+         local jitter = opt.jitter
 
-         if opt.jitter > 0 then
-            --select random shifted subimage
-            x1 = math.floor(torch.uniform(opt.jitter + 1))
-            y1 = math.floor(torch.uniform(opt.jitter + 1))
-
+         if jitter > 0 and not istest then
+            local nnnn = dataset.extract_jitter[dataset.jitter[j]](dataset.data[j], h, w, jitter)
+            samples[i]:copy(nnnn)
+            dataset.jitter[i] = (dataset.jitter[i] + 3)%10
+         else
+            samples[i]:copy(image.scale(dataset.data[j], h, w))
          end
 
-         if opt.parts then
-
-            local x1 = math.floor(torch.uniform(1, data.data:size(4) - w + 1))
-            local y1 = math.floor(torch.uniform(1, data.data:size(3) - h + 1))
-
-         end
-
-         samples[i] = data.data[j][{{},{y1, y1 + h - 1}, {x1, x1 + w - 1}}]
-         targets[i] = data.labels[j]
-
+         targets[i] = dataset.labels[j]
       end
 
    end
 
-   local function copyBatch(t, ims, tgs)
+   dataset.copyBatch = function(t, ims, tgs)
       ims:copy(samples)
       tgs:copy(targets)
    end
 
    dataset.newShuffle = function()
-      dataset.shuffle:copy(torch.randperm(nSamples):type('torch.LongTensor'))
+      dataset.shuffle:copy(torch.randperm(dataset.nbSamples):type('torch.LongTensor'))
    end
 
-   dataset.nBatches = math.floor(data.data:size(1) / opt.batchSize)
+   dataset.nBatches = math.floor(dataset.nbSamples / opt.batchSize)
 
-   -- augment dataset:
-   data.copyBatch = copyBatch
-   data.prepareBatch = prepareBatch
-
-   return data
-
+   return dataset
 end
 
 ----------------------------------------------------------------------
@@ -336,8 +340,8 @@ function filter_imagenet(src_data, src_info, dst_data, dst_info, new_classes, im
 
       for i = 1, new_data_n[file] do
          if (i == 1 or i == new_data_n[file] or i%10 == 0) then
-         xlua.progress(i, new_data_n[file])
-      end
+            xlua.progress(i, new_data_n[file])
+         end
 
          local j = idxs[global_index]
          local imagenet_label = d.labels[j]
