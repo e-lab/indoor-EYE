@@ -78,6 +78,8 @@ Other parameters
    --network           (default N/A ) Load specified net from file. Default is "Not Available" -> new net is generated
 ]])
 
+torch.setdefaulttensortype('torch.FloatTensor')
+
 --allow write default false
 for a,b in pairs(opt) do
    if (b == 'false') then opt[a] = false end
@@ -159,7 +161,6 @@ dofile('Data/indoor-classes.lua')
 torch.manualSeed(opt.seed)
 torch.setnumthreads(opt.num_threads) --some of data scripts may change numthreads, so we need to do it here
 print('Currently using ' .. torch.getnumthreads() .. ' threads')
-torch.setdefaulttensortype('torch.FloatTensor')
 os.execute('mkdir -p ' .. opt.save_dir) --create folder for saving results
 
 --compute global mean and std
