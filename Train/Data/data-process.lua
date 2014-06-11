@@ -100,7 +100,6 @@ function get_global_mean_async(data_file, info_file, sdir, save_act, verbose)
 
       for file = 1, number_file do
          -- verifying if we have the good number
-         assert(index_global == dt.file_range[file][1])
 
          if verbose then
             print('===> file #' .. file)
