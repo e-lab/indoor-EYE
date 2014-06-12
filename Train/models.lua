@@ -9,15 +9,15 @@ function get_model1()
 
    --options for (conv+pool+threshold) layers
    local nConvLayers = 5 --number of (conv+pool+threshold) layers
-   local nFeatureMaps= {[0]=3, 32, 64, 96, 96, 64} --number of feature maps in conv layers
-   local filterSize  = {        9,  5,  3,  3,  3} --filter sizes in conv layers
-   local convPadding = {        0,  0,  0,  0,  0}
-   local convStride  = {        1,  1,  1,  1,  1}
-   local poolSize    = {        3,  3,  1,  1,  3}
-   local poolStride  = {        2,  2,  1,  1,  2}
+   local nFeatureMaps= {[0]=3, 48, 128, 192, 192, 2*128} --number of feature maps in conv layers
+   local filterSize  = {       11,   5,   3,   3,     3} --filter sizes in conv layers
+   local convPadding = {        4,   4,   2,   2,     2}
+   local convStride  = {        4,   1,   1,   1,     1}
+   local poolSize    = {        1,   3,   3,   1,     3}
+   local poolStride  = {        1,   2,   2,   1,     2}
 
    --options for linear layers
-   local neuronsPerLinearLayer = {256, 256} --number of neurons in linear layer
+   local neuronsPerLinearLayer = {4096, 4096} --number of neurons in linear layer
 
    --neuralnet model consists of submodel1 and submodel2
    local model = nn.Sequential()
@@ -48,7 +48,9 @@ function get_model1()
 
    --transpose batch if cuda
    if opt.cuda then
-      submodel1:add(nn.Transpose({1,4},{1,3},{1,2}))
+      local tmp = nn.Transpose({1,4},{1,3},{1,2})
+      tmp.updateGradInput = function() end
+      submodel1:add(nn.Transpose(tmp))
       table.insert(memory.submodel1.val,2 * opt.batchSize * opt.ncolors * opt.width^2)
       table.insert(memory.submodel1.str,'Trn')
    end
