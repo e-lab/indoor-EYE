@@ -173,7 +173,7 @@ if opt.mmload then
    trainData = load_data_mm(train_data_file, train_info_file)
 else
    --load all data at once
-   opt.loading_thread = 1
+   opt.mm_threads = 1
    testData = load_data(test_data_file, test_info_file, 'test.t7', opt.data_sl)
    trainData = load_data(train_data_file, train_info_file, 'train.t7', opt.data_sl)
 end

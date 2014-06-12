@@ -152,12 +152,10 @@ function get_global_mean_async(data_file, info_file, sdir, save_act, verbose)
       end
       std:sqrt()
 
-      if save_act == 'save' then
-         local preproc = {}
-         preproc.mean = mean
-         preproc.std = std
-         torch.save(sfile, preproc)
-      end
+      local preproc = {}
+      preproc.mean = mean
+      preproc.std = std
+      torch.save(sfile, preproc)
 
    end
 
