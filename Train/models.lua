@@ -49,8 +49,7 @@ function get_model1()
    --transpose batch if cuda
    if opt.cuda then
       local tmp = nn.Transpose({1,4},{1,3},{1,2})
-      tmp.updateGradInput = function() end
-      submodel1:add(nn.Transpose(tmp))
+      submodel1:add(tmp)
       table.insert(memory.submodel1.val,2 * opt.batchSize * opt.ncolors * opt.width^2)
       table.insert(memory.submodel1.str,'Trn')
    end
@@ -226,7 +225,7 @@ function get_model1()
       submodel1.val:add(nn.Probe('Probing output layer'))
    end
    --log probabilities
-   submodel2:add(nn.LogSoftMax())
+   logsoft = nn.LogSoftMax()
    table.insert(memory.submodel2.val, 2 * outputMem)
    table.insert(memory.submodel2.str,'SM')
 
@@ -239,7 +238,6 @@ function get_model1()
 
    if opt.cuda then
       model:cuda()
-      loss:cuda()
    end
 
    -- Creates dummy file for plotting
@@ -284,7 +282,7 @@ function get_model1()
    statFile:write(str); statFile:flush()
 
    --print(model.modules)
-   return model, loss, dropout, memory
+   return model, logsoft, loss, dropout, memory
 
 end
 
@@ -316,6 +314,7 @@ function get_model2(networkFile)
    recoverDropoutTable(dropout,model)
 
    -- Loss: NLL
+   local logsoft = nn.LogSoftMax()
    local loss = nn.ClassNLLCriterion()
 
    if opt.cuda then
@@ -323,6 +322,6 @@ function get_model2(networkFile)
       loss:cuda()
    end
 
-   return model, loss, dropout
+   return model, logsoft, loss, dropout
 
 end
