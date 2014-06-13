@@ -133,7 +133,8 @@ os.execute('mkdir -p ' .. opt.temp_dir) --create folder for temporary data
 -------------------------------------------------------------------------------
 
 --set data paths
-data_folder = eex.datasetsPath() .. 'originalDataset/'
+--data_folder = eex.datasetsPath() .. 'originalDataset/'
+data_folder = '/media/DataDrive/Datasets/'
 train_info_file = data_folder .. 'train-info-' .. opt.subsample_name .. '.t7' --file with labels, image sizes and paddings
 test_info_file = data_folder .. 'test-info-' .. opt.subsample_name .. '.t7'
 
@@ -143,10 +144,8 @@ local trainFolder = data_folder .. 'train-folder-' .. opt.subsample_name .. '/'
 if (paths.dirp(testFolder))  then
    test_data_file = testFolder .. 'test-data-' .. opt.subsample_name
 else
-   test_data_file = data_folder .. 'test-data-' .. opt.subsample_name .. '.t7'
    test_info_file = data_folder .. 'test-info-' .. opt.subsample_name .. '.t7'
 end
-
 
 if (paths.dirp(trainFolder))  then
    train_data_file = trainFolder .. 'train-data-' .. opt.subsample_name
