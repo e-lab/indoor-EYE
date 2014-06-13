@@ -196,19 +196,19 @@ function run(trainData, testData)
    --get classifier and loss function
    local model, loss, dropout
    if opt.network == 'N/A' then
-      model, loss, dropout = get_model1() --(classifier.lua)
+      model, logsoft, loss, dropout = get_model1() --(classifier.lua)
       local tmpFile = io.open('.pltStat', 'r')
       statFile:write(tmpFile:read('*all'))
       io.close(tmpFile)
       os.execute('rm .pltStat .pltStatData')
    else
       print('Loading network from file: ' .. opt.network)
-      model, loss, dropout = get_model2(opt.network)
+      model, logsoft, loss, dropout = get_model2(opt.network)
    end
    collectgarbage() -- get rid of craps from the GPU's RAM
 
    --train classifier
-   local train_acc, test_acc = train_and_test(trainData, testData, model, loss, opt.plot, opt.verbose, dropout) --(train-and-test.lua)
+   local train_acc, test_acc = train_and_test(trainData, testData, model, logsoft, loss, opt.plot, opt.verbose, dropout) --(train-and-test.lua)
    -------------------------------------------------------------------------------
 
    --return train and test accuracy

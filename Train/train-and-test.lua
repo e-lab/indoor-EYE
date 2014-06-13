@@ -2,6 +2,7 @@
 -- Functions for training and testing a classifier
 -- Artem Kuharenko
 -- Alfredo Canziani, Feb 2014
+-- Gregory Essertel, May 2014
 -------------------------------------------------------------------------------
 
 require 'torch'   -- torch
@@ -15,7 +16,6 @@ local targets = torch.Tensor(opt.batchSize)
 
 if opt.cuda then
    ims = ims:cuda()
-   targets = targets:cuda()
 end
 
 local weightsBackup = {}
@@ -24,7 +24,7 @@ local topBackup = {}
 local trainTestTime   = {}
 local w, dE_dw
 
-function train(data, model, loss, dropout, top5)
+function train(data, model, logsoft, loss, dropout, top5)
    --train one iteration
 
    local nbThread = opt.mm_threads
@@ -89,17 +89,25 @@ function train(data, model, loss, dropout, top5)
       end
 
       -- create closure to evaluate f(X) and df/dX
-      local eval_E = function()
+      local eval_E = function (att)
 
          dE_dw:zero()
 
-         local y = model:forward(ims)
-         local E = loss:forward(y, targets)
+         local outputModelGPU = model:forward(ims)
+         cutorch.synchronize()
+         local outputModelCPU = outputModelGPU:float()
+         local preds = logsoft:forward(outputModelCPU)
+         local E = loss:forward(preds, targets)
 
-         -- Catching NaNs on training cross-entropy
          ce_train_error = ce_train_error + E
-         local dE_dy = loss:backward(y, targets)
-         model:backward(ims, dE_dy)
+
+         local dE_dy = loss:backward(preds, targets)
+         local gradLogSoftCPU = logsoft:backward(outputModelCPU, dE_dy)
+
+         -- on GPU
+         local gradLogSoftGPU = gradLogSoftCPU:cuda()
+         model:backward(ims, gradLogSoftGPU)
+         cutorch.synchronize()
 
          return E, dE_dw
       end
@@ -120,8 +128,11 @@ function train(data, model, loss, dropout, top5)
          end
 
          -- Update confusion matrix
-         local y = model:forward(ims)
-         top5:batchAdd(y, targets)
+         local outputModelGPU = model:forward(ims)
+         cutorch.synchronize()
+         local outputModelCPU = outputModelGPU:float()
+         local preds = logsoft:forward(outputModelCPU)
+         top5:batchAdd(preds, targets)
          -- Switching back on the dropout
          if opt.dropout > 0 or opt.inputDO > 0 then
             for _,d in ipairs(dropout) do
@@ -160,7 +171,7 @@ function train(data, model, loss, dropout, top5)
    end
 end
 
-function test(data, model, loss, dropout, top5)
+function test(data, model, logsoft, loss, dropout, top5)
 
    local nbThread = opt.mm_threads
    data.newShuffle()
@@ -187,7 +198,10 @@ function test(data, model, loss, dropout, top5)
       end
 
       -- test sample
-      local preds = model:forward(ims)
+      local outputModelGPU = model:forward(ims)
+      cutorch.synchronize()
+      local outputModelCPU = outputModelGPU:float()
+      local preds = logsoft:forward(outputModelCPU)
       local E = loss:forward(preds, targets)
 
       top5:batchAdd(preds, targets)
@@ -330,7 +344,7 @@ function checkWeight(model, logMin, logMax, logAvg, logStd, logGwsMin, logGwsMax
    return NaNOk
 end
 
-function train_and_test(trainData, testData, model, loss, plot, verbose, dropout)
+function train_and_test(trainData, testData, model, logsoft, loss, plot, verbose, dropout)
 
    w, dE_dw = model:getParameters()
 
@@ -486,7 +500,7 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
       --train
       sys.tic()
       if verbose then print('==> Train ' .. epoch) end
-      trainedSuccessfully, nbFailures = train(trainData, model, loss, dropout, train_top5)
+      trainedSuccessfully, nbFailures = train(trainData, model, logsoft, loss, dropout, train_top5)
       local time = sys.toc()
 
       -------------------------------------------------------------------------------
@@ -502,7 +516,7 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
          sys.tic()
          ce_test_error = 0
          if verbose then print('==> Test ' .. epoch) end
-         test(testData, model, loss, dropout, test_top5)
+         test(testData, model, loss, logsoft, dropout, test_top5)
          timeTest = sys.toc()
          test_top5:update()
 
