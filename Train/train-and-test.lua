@@ -479,6 +479,7 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
    local nbFailures = 0
    local continue = true
    local epochTrained = 0
+   ce_train_error = 0
 
    while continue do
       collectgarbage()
@@ -492,9 +493,11 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
       -------------------------------------------------------------------------------
       -- check validity
       -- (1) Nan in weight
+      --[[
       if (trainedSuccessfully) then
-         trainedSuccessfully = checkWeight(model, logMin, logMax, logAvg, logStd, logGwsMin, logGwsMax, logGwsAvg, logGwsStd)
+      trainedSuccessfully = checkWeight(model, logMin, logMax, logAvg, logStd, logGwsMin, logGwsMax, logGwsAvg, logGwsStd)
       end
+      --]]
 
       -- (2) testing and checking if there is a drop in the accuracy
       local timeTest = 0
