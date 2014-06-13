@@ -516,7 +516,7 @@ function train_and_test(trainData, testData, model, logsoft, loss, plot, verbose
          sys.tic()
          ce_test_error = 0
          if verbose then print('==> Test ' .. epoch) end
-         test(testData, model, loss, logsoft, dropout, test_top5)
+         test(testData, model, logsoft, loss, dropout, test_top5)
          timeTest = sys.toc()
          test_top5:update()
 
