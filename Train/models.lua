@@ -49,8 +49,7 @@ function get_model1()
    --transpose batch if cuda
    if opt.cuda then
       local tmp = nn.Transpose({1,4},{1,3},{1,2})
-      tmp.updateGradInput = function() end
-      submodel1:add(nn.Transpose(tmp))
+      submodel1:add(tmp)
       table.insert(memory.submodel1.val,2 * opt.batchSize * opt.ncolors * opt.width^2)
       table.insert(memory.submodel1.str,'Trn')
    end
