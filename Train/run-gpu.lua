@@ -11,8 +11,7 @@
 require 'torch'
 require 'nnx'
 require 'net-toolkit'
-ffi = require 'ffi'
-require 'pl'
+local lapp = require 'pl.lapp'
 require 'sys'
 require 'cutorch'
 require 'cunn'
@@ -34,10 +33,7 @@ opt = lapp(title .. [[
 
 Dataset's parameters
 --side            (default 128)        Training and testing image's side length (max 256)
---colour          (default true)       True by default, allows to train on B&W if the flag is called
 --jitter          (default 0)          Introduce random crop for loweing overfitting
---mmload                               Memory mapping when loading data. Use with small RAM
---mm_threads      (default 4)          Number of threads use for mm
 --dropout         (default 0)          Dropout in MLP. Set it to 0 for disabling it, 0.5 for "standard" working value
 --inputDO         (default 0)          Input dropout. Set it to 0 for disabling it, 0.2 for "standard" working value
 --subsample_name  (default 'indoor51') Name of imagenet subsample. Possible options ('class51', 'elab')
@@ -57,7 +53,7 @@ Output folder
 --save_dir (default './results/') Folder where the stats and models are saved
 
 CUDA parameters
---devid (default) device ID (if using CUDA)
+--devid (default 1) device ID (if using CUDA)
 
 Other parameters
 --num_threads       (default 6   )
@@ -76,13 +72,6 @@ if opt.verbose then
    print('==> Options:')
    for a,b in pairs(opt) do print('     + ' .. a .. ':', b) end
    print()
-end
-
--- Aggiusting options ---------------------------------------------------------
-if opt.colour then
-   opt.ncolors = 3
-else
-   opt.ncolors = 1
 end
 
 -- Training with GPU ----------------------------------------------------------
@@ -122,18 +111,16 @@ trainOpt.side = opt.side
 trainOpt.jitter = opt.jitter
 trainOpt.batchSize = opt.batchSize
 trainOpt.verbose = true
-trainOpt.nbThreads = 1
+trainOpt.nbThreads = 4
 trainOpt.normInput = true
 
-local datasetExtractor = dmanager.TrainingExtractorAsyn(opt.subsample_name, trainOpt)
+local datasetExtractor = dmanager.TrainingExtractorAsync(opt.subsample_name, trainOpt)
 
 --print train and test image sizes
 if verbose then
    print(string.format('==> Train number of batches: %d, Batch size: %dx%dx%dx%d', datasetExtractor.getNbBatches(true), opt.colour, opt.side, opt.side))
    print(string.format('==> Test number of batches: %d, Batch size: %dx%dx%dx%d',  datasetExtractor.getNbBatches(false), opt.colour, opt.side, opt.side))
 end
---compute global mean and std
-local stats = datasetExtractor:getGlobalMeanAndStd(opt.side, 8, opt.verbose)
 
 -- Loggers ----------------------------------------------------------------------
 print '==> Set up Log'
@@ -167,7 +154,7 @@ print '==> Start Training'
 --get classifier and loss function
 local model, logsoft, loss, dropout
 if opt.network == 'N/A' then
-   model, logsoft, loss, dropout = get_model1(true) --(classifier.lua)
+   model, logsoft, loss, dropout = get_model1(#datasetExtractor:getClasses(), statFile, true) --(classifier.lua)
    local tmpFile = io.open('.pltStat', 'r')
    statFile:write(tmpFile:read('*all'))
    io.close(tmpFile)
@@ -176,10 +163,12 @@ else
    if (verbose) then
       print('Loading network from file: ' .. opt.network)
    end
-   model, logsoft, loss, dropout = get_model2(opt.network)
+   model, logsoft, loss, dropout = get_model2(opt.network, true)
 end
 collectgarbage() -- get rid of craps from the GPU's RAM
 
 --train classifier
-train_and_test(datasetExtractor, model, logsoft, loss, dropout) --(train-and-test.lua)
+train_and_test(datasetExtractor, model, logsoft, loss, dropout, statFile) --(train-and-test.lua)
+
+io.close(statFile)
 -------------------------------------------------------------------------------

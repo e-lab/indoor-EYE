@@ -7,13 +7,12 @@
 -- Gregory Essertel, May 2014
 -------------------------------------------------------------------------------
 
-require 'torch'   -- torch
 require 'optim'   -- an optimization package, for online and batch methods
+
 local TopAcc = require('TopAccuracy')
 
 --allocate memory for batch of images
-local ims = torch.Tensor(opt.batchSize, opt.colour, opt.side, opt.side)
-ims:cuda()
+local ims = torch.CudaTensor(opt.batchSize, 3, opt.side, opt.side)
 
 --allocate memory for batch of labels
 local targets = torch.Tensor(opt.batchSize)
@@ -91,18 +90,17 @@ end
 
 function test(datasetExtractor, model, logsoft, loss, dropout, top5)
 
-   local nbThread = datasetExtractor:getNbThreads()
-   datasetExtractor:newShuffle(false)
-
-   for batch = 1, nbThread do
-      datasetExtractor:prepareBatch(batch, false)
-   end
-
    local ce_test_error = 0
    local loading_time = 0
    local computing_time = 0
    local nb_batches = datasetExtractor:getNbBatches(false)
 
+   local nbThread = math.min(datasetExtractor:getNbThreads(), nb_batches)
+   datasetExtractor:newShuffle(false)
+
+   for batch = 1, nbThread do
+      datasetExtractor:prepareBatch(batch, false)
+   end
 
    -- Switching off the dropout
    if opt.dropout > 0 or opt.inputDO > 0 then
@@ -113,14 +111,14 @@ function test(datasetExtractor, model, logsoft, loss, dropout, top5)
 
    for batch = 1, nb_batches do
 
-      xlua.progress(batch, data.nBatches)
+      xlua.progress(batch, nb_batches)
 
       local timerLoading = torch.Timer()
-      data.copyBatch(batch, ims, targets)
+      datasetExtractor:copyBatch(batch, ims, targets)
       loading_time = loading_time + timerLoading:time().real
       --prepare next batch
-      if batch + nbThread <= data.nBatches then
-         data.prepareBatch(batch + nbThread, false)
+      if batch + nbThread <= nb_batches then
+         datasetExtractor:prepareBatch(batch + nbThread, false)
       end
 
       -- test sample
@@ -209,7 +207,7 @@ local function recovert_logger(epochInit)
    return logger, ce_logger, logger_5
 end
 
-function train_and_test(dataset, model, logsoft, loss, dropout)
+function train_and_test(dataset, model, logsoft, loss, dropout, statFile)
 
    w, dE_dw = model:getParameters()
 
@@ -278,15 +276,15 @@ function train_and_test(dataset, model, logsoft, loss, dropout)
       end
       local train_timer = torch.Timer()
       local train_ce_error, train_loading, train_computing = train(dataset, model, logsoft, loss, dropout, train_top5)
-      local train_time = train_timer:clock().real
+      local train_time = train_timer:time().real
 
       -- (2) testing
       if opt.verbose then
          print('==> Test ' .. epoch)
       end
       local test_timer = torch.Timer()
-      local test_ce_error, test_loading, test_computing = test(dataset, model, loss, logsoft, dropout, test_top5)
-      local test_time = test_tiner:clock().real
+      local test_ce_error, test_loading, test_computing = test(dataset, model, logsoft, loss, dropout, test_top5)
+      local test_time = test_timer:time().real
 
       -- (3) update loggers
       train_top5:update()
@@ -296,18 +294,18 @@ function train_and_test(dataset, model, logsoft, loss, dropout)
       logger_5:add{train_top5.result[5] * 100,test_top5.result[5] * 100,
       train_top5.result[1] * 100, test_top5.result[1] * 100}
 
-      local comment = string.format([[%s\n%s\n%s\n%s\n%s\n%s\n\n%s\n%s\n%s\n%s\n\n%s\n]],
-      string.format('------------------------ Statistics epoch %3d ------------------------', epoch),
-      'Accuracy\tTrain\t\tTest',
-      string.format("Top5\t%.2f\t\t%.2f", train_top5.result[5] * 100, test_top5.result[5] * 100),
-      string.format("Top1\t%.2f\t\t%.2f", train_top5.result[1] * 100, test_top5.result[1] * 100),
-      'CE error\tTrain\t\tTest',
-      string.format("\t\t%.4f\t\t%.4f", train_ce_error, test_ce_error),
-      'Times\t\t\tTrain\t\tTest',
+      local comment = string.format("\n%s\n%s\n%s\n%s\n%s\n\n%s\n%s\n%s\n%s\n\n%s\n%s\n\n",
+      string.format('-------------------- Statistics epoch %3d ---------------------', epoch),
+      '\t\t\tTrain\t\tTest',
+      string.format("Top5\t\t\t%.2f\t\t%.2f", train_top5.result[5] * 100, test_top5.result[5] * 100),
+      string.format("Top1\t\t\t%.2f\t\t%.2f", train_top5.result[1] * 100, test_top5.result[1] * 100),
+      string.format("CE error\t\t%.4f\t\t%.4f", train_ce_error, test_ce_error),
       string.format("Epoch(min)\t\t%.2f\t\t%.2f", train_time/60, test_time / 60),
       string.format("Batch Loading(msec)\t%.3f\t\t%.3f", train_loading * 1000, test_loading * 1000),
       string.format("Batch Computing(msec)\t%.3f\t\t%.3f", train_computing* 1000, test_computing * 1000),
-      string.format("Total time(min)\t%.2f", total_timer:clock().real/60))
+      string.format("Batch Total(msec)\t%.3f\t\t%.3f", train_time/dataset:getNbBatches(true) * 1000, test_time /dataset:getNbBatches(false) * 1000),
+      string.format("Total time(min)\t%.2f", total_timer:time().real/60),
+      '---------------------------------------------------------------')
 
       if (opt.verbose) then
          print(comment)

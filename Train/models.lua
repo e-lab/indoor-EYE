@@ -266,9 +266,9 @@ function get_model1(nbClasses, statFile, cuda)
 
    io.close(pltStat)
    os.execute [[gnuplot -e "
-      set term dumb 170 50;
-      p './.pltStatData' u 0:2:xtic(1) w boxes t 'parameters'
-      " | tee .pltStat]]
+   set term dumb 170 50;
+   p './.pltStatData' u 0:2:xtic(1) w boxes t 'parameters'
+   " | tee .pltStat]]
 
    -- Evaluate network's weight
    local w = model:getParameters()
@@ -300,7 +300,7 @@ local function recoverDropoutTable(dropoutTable,network)
 end
 
 -- Load model from file --------------------------------------------------------
-function get_model2(networkFilei, cuda)
+function get_model2(networkFile, cuda)
 
    -- Load model from file
    local model = netToolkit.loadNet(networkFile)
