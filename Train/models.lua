@@ -5,7 +5,7 @@
 -------------------------------------------------------------------------------
 
 -- Craft model ----------------------------------------------------------------
-function get_model1()
+function get_model1(nbClasses, statFile, cuda)
 
    --options for (conv+pool+threshold) layers
    local nConvLayers = 5 --number of (conv+pool+threshold) layers
@@ -26,11 +26,11 @@ function get_model1()
 
    -- Keeping track of memory usage
    local memory = {}
-   memory[0] = opt.batchSize * (#classes + opt.ncolors*opt.width^2) -- gradInput + output (overhead)
+   memory[0] = opt.batchSize * (nbClasses + 3*opt.side^2) -- gradInput + output (overhead)
    memory.submodel1 = {}
    memory.submodel1.val = {}
    memory.submodel1.str = {}
-   memory.submodel1.val[0] = opt.batchSize * opt.ncolors * opt.width^2 -- + output
+   memory.submodel1.val[0] = opt.batchSize * 3 * opt.side^2 -- + output
    memory.submodel2 = {}
    memory.submodel2.val = {}
    memory.submodel2.str = {}
@@ -42,22 +42,22 @@ function get_model1()
       dropout[DOidx] = nn.Dropout(opt.inputDO)
       submodel1:add(dropout[DOidx])
       DOidx = DOidx + 1
-      table.insert(memory.submodel1.val,4 * opt.batchSize * opt.ncolors * opt.width^2)
+      table.insert(memory.submodel1.val,4 * opt.batchSize * 3 * opt.side^2)
       table.insert(memory.submodel1.str,'Drp')
    end
 
    --transpose batch if cuda
-   if opt.cuda then
+   if cuda then
       local tmp = nn.Transpose({1,4},{1,3},{1,2})
       submodel1:add(tmp)
-      table.insert(memory.submodel1.val,2 * opt.batchSize * opt.ncolors * opt.width^2)
+      table.insert(memory.submodel1.val,2 * opt.batchSize * 3 * opt.side^2)
       table.insert(memory.submodel1.str,'Trn')
    end
 
-   local mapsizes = {[0]=opt.width} --sizes of output of layers
+   local mapsizes = {[0]=opt.side} --sizes of output of layers
    local nConnections = {[0]=0} --number of connections between i-th and (i-1) layer
    local trainParam = {[0] = 0} --number of hidden units in layer i
-   local nHiddenNeurons = {[0] = opt.width^2 * opt.ncolors} --number of output units in layer i
+   local nHiddenNeurons = {[0] = opt.side^2 * 3} --number of output units in layer i
    local r1, r2
 
    --add first 1..nConvLayers layers (conv+pool+threshold)
@@ -67,20 +67,16 @@ function get_model1()
 
       local convLayer, poolLayer
 
-      if opt.cuda then
-
+      if cuda then
          convLayer = nn.SpatialConvolutionCUDA(nFeatureMaps[i - 1], nFeatureMaps[i], filterSize[i], filterSize[i], convStride[i], convStride[i], convPadding[i])
          poolLayer = nn.SpatialMaxPoolingCUDA(poolSize[i], poolSize[i], poolStride[i], poolStride[i])
          convLayer:cuda()
          poolLayer:cuda()
          test_batch = nn.Transpose({1,4},{1,3},{1,2}):forward(test_batch):cuda()
-
       else
-
          convLayer = nn.SpatialConvolutionMM(nFeatureMaps[i - 1], nFeatureMaps[i], filterSize[i], filterSize[i])
          -- convLayer = nn.SpatialConvolution(nFeatureMaps[i - 1], nFeatureMaps[i], filterSize[i], filterSize[i], convStride[i], convStride[i])
          poolLayer = nn.SpatialMaxPooling(poolSize[i], poolSize[i], poolStride[i], poolStride[i])
-
       end
 
       --get layer sizes
@@ -94,7 +90,7 @@ function get_model1()
       -- Computing memory usage
       local biasMem = 2*nFeatureMaps[i]
       local weightMem = nFeatureMaps[i]*nFeatureMaps[i - 1]*filterSize[i]^2
-      weightMem = opt.cuda and 3*weightMem or 2*weightMem
+      weightMem = cuda and 3*weightMem or 2*weightMem
       local gradInputMem = test_batch:size(1)*test_batch:size(2)*test_batch:size(3)*test_batch:size(4)
       local outputMem = r1:size(1)*r1:size(2)*r1:size(3)*r1:size(4)
       table.insert(memory.submodel1.val, biasMem + weightMem + gradInputMem + outputMem)
@@ -111,19 +107,19 @@ function get_model1()
          outputMem = r2:size(1)*r2:size(2)*r2:size(3)*r2:size(4)
       end
 
-      if opt.cuda then
+      if cuda then
          mapsizes[i] = poolLayer.output:size(2)
       else
          mapsizes[i] = poolLayer.output:size(3)
       end
       trainParam[i] = convLayer.weight:size(1) * convLayer.weight:size(2)
-      if opt.cuda then
+      if cuda then
          trainParam[i] = trainParam[i] * convLayer.weight:size(3) * convLayer.weight:size(4)
       end
       trainParam[i] = trainParam[i] + nFeatureMaps[i]
       nConnections[i] = trainParam[i] * ((mapsizes[i - 1] - filterSize[i] + 1) / convStride[i]) ^ 2
 
-      if opt.cuda then
+      if cuda then
          nHiddenNeurons[i] = poolLayer.output:size(2) * poolLayer.output:size(3) * nFeatureMaps[i]
       else
          nHiddenNeurons[i] = poolLayer.output:size(3) * poolLayer.output:size(4) * nFeatureMaps[i]
@@ -135,7 +131,7 @@ function get_model1()
    end
 
    --transpose batch if cuda
-   if opt.cuda then
+   if cuda then
       submodel1:add(nn.Transpose({4,1},{4,2},{4,3}))
       table.insert(memory.submodel1.val, 2 * r2:size(1)*r2:size(2)*r2:size(3)*r2:size(4))
       table.insert(memory.submodel1.str,'Trn')
@@ -143,7 +139,7 @@ function get_model1()
 
    memory.submodel1.val[0] = memory.submodel1.val[0] + r2:size(1)*r2:size(2)*r2:size(3)*r2:size(4)
 
-   memory.submodel2.val[0] = r2:size(1)*r2:size(2)*r2:size(3)*r2:size(4) + opt.batchSize*#classes
+   memory.submodel2.val[0] = r2:size(1)*r2:size(2)*r2:size(3)*r2:size(4) + opt.batchSize*nbClasses
    --reshape
    submodel2:add(nn.Reshape(nHiddenNeurons[nConvLayers]))
    table.insert(memory.submodel2.val, 2 * nHiddenNeurons[nConvLayers] * opt.batchSize)
@@ -201,23 +197,23 @@ function get_model1()
    end
 
    --add classifier
-   local outputLayer = nn.Linear(nHiddenNeurons[nConvLayers + #neuronsPerLinearLayer], #classes)
+   local outputLayer = nn.Linear(nHiddenNeurons[nConvLayers + #neuronsPerLinearLayer], nbClasses)
    outputLayer.printable = true
    outputLayer.text = 'Output layer'
    submodel2:add(outputLayer)
 
    -- Get output layer size
    table.insert(mapsizes, 1)
-   table.insert(trainParam, nHiddenNeurons[#nHiddenNeurons] * #classes)
+   table.insert(trainParam, nHiddenNeurons[#nHiddenNeurons] * nbClasses)
    table.insert(nConnections, trainParam[#trainParam])
    table.insert(nFeatureMaps, 1)
-   table.insert(nHiddenNeurons, #classes)
+   table.insert(nHiddenNeurons, nbClasses)
 
    -- Computing memory usage
-   local biasMem = 2 * #classes
-   local weightMem = 2 * nHiddenNeurons[#nHiddenNeurons] * #classes
+   local biasMem = 2 * nbClasses
+   local weightMem = 2 * nHiddenNeurons[#nHiddenNeurons] * nbClasses
    local gradInputMem = opt.batchSize * nHiddenNeurons[#nHiddenNeurons]
-   local outputMem = opt.batchSize * #classes
+   local outputMem = opt.batchSize * nbClasses
    table.insert(memory.submodel2.val, biasMem + weightMem + gradInputMem + outputMem)
    table.insert(memory.submodel2.str,'Lnr')
 
@@ -225,7 +221,7 @@ function get_model1()
       submodel1.val:add(nn.Probe('Probing output layer'))
    end
    --log probabilities
-   logsoft = nn.LogSoftMax()
+   local logsoft = nn.LogSoftMax()
    table.insert(memory.submodel2.val, 2 * outputMem)
    table.insert(memory.submodel2.str,'SM')
 
@@ -236,12 +232,12 @@ function get_model1()
    -- Loss: NLL
    local loss = nn.ClassNLLCriterion()
 
-   if opt.cuda then
+   if cuda then
       model:cuda()
    end
 
    -- Creates dummy file for plotting
-   pltStat = io.open('.pltStatData','w+')
+   local pltStat = io.open('.pltStatData','w+')
    pltStat:write('#Layer\tParam\n')
 
    --print sizes of nConvLayers
@@ -294,7 +290,7 @@ local function assignDropout(dropoutTable,module)
    end
 end
 
-function recoverDropoutTable(dropoutTable,network)
+local function recoverDropoutTable(dropoutTable,network)
    assignDropout(dropoutTable,network)
    if network.modules then
       for _,a in ipairs(network.modules) do
@@ -304,7 +300,7 @@ function recoverDropoutTable(dropoutTable,network)
 end
 
 -- Load model from file --------------------------------------------------------
-function get_model2(networkFile)
+function get_model2(networkFilei, cuda)
 
    -- Load model from file
    local model = netToolkit.loadNet(networkFile)
@@ -317,9 +313,8 @@ function get_model2(networkFile)
    local logsoft = nn.LogSoftMax()
    local loss = nn.ClassNLLCriterion()
 
-   if opt.cuda then
+   if cuda then
       model:cuda()
-      loss:cuda()
    end
 
    return model, logsoft, loss, dropout
