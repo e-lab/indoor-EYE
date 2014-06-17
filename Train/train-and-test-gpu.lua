@@ -149,65 +149,8 @@ function test(datasetExtractor, model, logsoft, loss, dropout, top5)
    return ce_test_error, loading_time, computing_time
 end
 
-local function recovert_logger(epochInit)
-   local tmpAcc = {}
-   local tmpCE = {}
-   local tmpAcc5 = {}
-   if (paths.filep(opt.save_dir .. 'accuracy.log')) then
-      local file = io.open(opt.save_dir .. 'accuracy.log', r)
-      local tmpVal = file:read("*line")  -- skip the header
-      for ep = 1, epochInit do
-         tmpVal = file:read("*number")  -- train
-         table.insert(tmpAcc, tmpVal)
-         tmpVal = file:read("*number")  -- test
-         table.insert(tmpAcc, tmpVal)
-      end
-      io.close(file)
-   end
-   if (paths.filep(opt.save_dir .. 'cross-entropy.log')) then
-      local file = io.open(opt.save_dir .. 'cross-entropy.log', r)
-      local tmpVal = file:read("*line")  -- skip the header
-      for ep = 1, epochInit do
-         tmpVal = file:read("*number")  -- train
-         table.insert(tmpCE, tmpVal)
-         tmpVal = file:read("*number")  -- test
-         table.insert(tmpCE, tmpVal)
-      end
-      io.close(file)
-   end
-   if (paths.filep(opt.save_dir .. 'accuracy-5.log')) then
-      local file = io.open(opt.save_dir .. 'accuracy-5.log', r)
-      local tmpVal = file:read("*line")  -- skip the header
-      for ep = 1, epochInit do
-         for log = 1, 2 do
-            tmpVal = file:read("*number")  -- train
-            table.insert(tmpAcc5, tmpVal)
-            tmpVal = file:read("*number")  -- test
-            table.insert(tmpAcc5, tmpVal)
-         end
-      end
-      io.close(file)
-   end
 
-   -- (3) init loggers
-   local logger = optim.Logger(opt.save_dir .. 'accuracy.log')
-   local ce_logger = optim.Logger(opt.save_dir .. 'cross-entropy.log')
-   local logger_5 = optim.Logger(opt.save_dir .. 'accuracy-5.log')
-   logger_5:setNames({'% train top5', '% test top5',
-   '% train top1', '% test top1'})
-
-   -- (4) load backup data
-   for ep = 1, epochInit do
-      logger:add{['% train accuracy'] = tmpAcc[2*ep-1], ['% test accuracy'] = tmpAcc[2*ep]}
-      ce_logger:add{['ce train error'] = tmpCE[2*ep-1], ['ce test error'] = tmpCE[2*ep]}
-      logger_5:add{tmpAcc5[4*ep-3], tmpAcc5[4*ep-2],
-      tmpAcc5[4*ep-1], tmpAcc5[4*ep]}
-   end
-
-   return logger, ce_logger, logger_5
-end
-
-function train_and_test(dataset, model, logsoft, loss, dropout, statFile)
+function train_and_test(dataset, model, logsoft, loss, dropout, statFile, logger, ce_logger, logger_5)
 
    w, dE_dw = model:getParameters()
 
@@ -226,42 +169,11 @@ function train_and_test(dataset, model, logsoft, loss, dropout, statFile)
       learningRateDecay = opt.learningRateDecay
    }
 
-   --init logger for train and test accuracy
-   local logger
-   --init logger for train and test cross-entropy error
-   local ce_logger
-   --init logger for train and test accuracy-5
-   local logger_5
-
-   local epochInit = 0
    local epoch = 1
    -- recover logger if restaring the training
    if opt.network ~= 'N/A' then
       -- (1) get the number of the epoch
-      epochInit = tonumber(string.match(opt.network, "%d+"))
-      epoch = epochInit + 1
-
-      -- (2) recover loggers
-      logger, ce_logger, logger_5 = recover_loggers(epochInit)
-
-      -- (3) plot
-      if opt.plot then
-         logger:style{['% train accuracy'] = '-', ['% test accuracy'] = '-'}
-         logger:plot()
-         ce_logger:style{['ce train error'] = '-', ['ce test error'] = '-'}
-         ce_logger:plot()
-         logger_5:style{'-', '-', '-', '-'}
-         logger_5:plot()
-      end
-   else
-      logger = optim.Logger(opt.save_dir .. 'accuracy.log')
-      ce_logger = optim.Logger(opt.save_dir .. 'cross-entropy.log')
-      logger_5 = optim.Logger(opt.save_dir .. 'accuracy-5.log')
-      logger_5:setNames({'% train top5', '% test top5',
-      '% train top1', '% test top1'})
-      logger:style{['% train accuracy'] = '-', ['% test accuracy'] = '-'}
-      ce_logger:style{['ce train error'] = '-', ['ce test error'] = '-'}
-      logger_5:style{'-', '-', '-', '-'}
+      epoch = 1 + tonumber(string.match(opt.network, "%d+"))
    end
 
    local continue = true

@@ -96,8 +96,9 @@ if opt.verbose then
 end
 dofile('models.lua')
 if opt.verbose then
-   print('==> Loading <data> functions')
+   print('==> Initiazing loggers')
 end
+dofile('init-loggers.lua')
 
 torch.manualSeed(123)
 torch.setnumthreads(opt.num_threads) --some of data scripts may change numthreads, so we need to do it here
@@ -110,7 +111,7 @@ local trainOpt = {}
 trainOpt.side = opt.side
 trainOpt.jitter = opt.jitter
 trainOpt.batchSize = opt.batchSize
-trainOpt.verbose = true
+trainOpt.verbose = opt.verbose
 trainOpt.nbThreads = 4
 trainOpt.normInput = true
 
@@ -118,26 +119,16 @@ local datasetExtractor = dmanager.TrainingExtractorAsync(opt.subsample_name, tra
 
 --print train and test image sizes
 if verbose then
-   print(string.format('==> Train number of batches: %d, Batch size: %dx%dx%dx%d', datasetExtractor.getNbBatches(true), opt.colour, opt.side, opt.side))
-   print(string.format('==> Test number of batches: %d, Batch size: %dx%dx%dx%d',  datasetExtractor.getNbBatches(false), opt.colour, opt.side, opt.side))
+   print(string.format('==> Train number of batches: %d, Batch size: %dx%dx%dx%d', datasetExtractor.getNbBatches(true), 3, opt.side, opt.side))
+   print(string.format('==> Test number of batches: %d, Batch size: %dx%dx%dx%d',  datasetExtractor.getNbBatches(false), 3, opt.side, opt.side))
 end
+-- Get loggers -----------------------------------------------------------------
 
--- Loggers ----------------------------------------------------------------------
-print '==> Set up Log'
-local statFile
-if (opt.network == 'N/A') then
-   -- Open file in re-write mode (NOT append)
-   statFile = io.open(opt.save_dir .. 'stat.txt','w+')
-   -- Writing title
-   statFile:write(title)
-else
-   statFile = io.open(opt.save_dir .. 'stat.txt','a')
+local statFile, logger, ce_logger, logger_5 = getLoggers()
 
-   statFile:write('\n')
-   statFile:write('-------------------------------------------------------------------------------\n')
-   statFile:write('------------------------------------ Restart ----------------------------------\n')
-   statFile:write('-------------------------------------------------------------------------------\n')
-end
+-- Writing title
+statFile:write(title)
+
 -- Writing current commit hash
 statFile:write(string.format('Current commit hash: %s\n',sys.execute('git rev-parse HEAD')))
 -- Collecting input arguments and writing them to file
@@ -155,10 +146,6 @@ print '==> Start Training'
 local model, logsoft, loss, dropout
 if opt.network == 'N/A' then
    model, logsoft, loss, dropout = get_model1(#datasetExtractor:getClasses(), statFile, true) --(classifier.lua)
-   local tmpFile = io.open('.pltStat', 'r')
-   statFile:write(tmpFile:read('*all'))
-   io.close(tmpFile)
-   os.execute('rm .pltStat .pltStatData')
 else
    if (verbose) then
       print('Loading network from file: ' .. opt.network)
@@ -167,8 +154,6 @@ else
 end
 collectgarbage() -- get rid of craps from the GPU's RAM
 
---train classifier
-train_and_test(datasetExtractor, model, logsoft, loss, dropout, statFile) --(train-and-test.lua)
-
-io.close(statFile)
+--train
+train_and_test(datasetExtractor, model, logsoft, loss, dropout, statFile, logger, ce_logger, logger_5) --(train-and-test.lua)
 -------------------------------------------------------------------------------

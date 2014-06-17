@@ -270,6 +270,12 @@ function get_model1(nbClasses, statFile, cuda)
    p './.pltStatData' u 0:2:xtic(1) w boxes t 'parameters'
    " | tee .pltStat]]
 
+
+   local tmpFile = io.open('.pltStat', 'r')
+   statFile:write(tmpFile:read('*all'))
+   io.close(tmpFile)
+   os.execute('rm .pltStat .pltStatData')
+
    -- Evaluate network's weight
    local w = model:getParameters()
    memory.parameters = w:size(1)
