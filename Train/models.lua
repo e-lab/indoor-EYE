@@ -316,7 +316,6 @@ function get_model2(networkFile)
 
    if opt.cuda then
       model:cuda()
-      loss:cuda()
    end
 
    return model, logsoft, loss, dropout
