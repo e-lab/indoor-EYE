@@ -30,7 +30,7 @@ function train(datasetExtractor, model, logsoft, loss, dropout, top5)
       datasetExtractor:prepareBatch(batch, true)
    end
 
-   local ce_train_error = 0
+   local train_ce_error = 0
    local loading_time = 0
    local computing_time = 0
    local nb_batches = datasetExtractor:getNbBatches(true)
@@ -61,7 +61,13 @@ function train(datasetExtractor, model, logsoft, loss, dropout, top5)
          local E = loss:forward(preds, targets)
 
          top5:batchAdd(preds, targets)
-         ce_train_error = ce_train_error + E
+         train_ce_error = train_ce_error + E
+
+         if (not (E < 100)) then
+            print('Sad', E)
+            datasetExtractor.threads:terminate()
+            error 'Fails without detection'
+         end
 
          local dE_dy = loss:backward(preds, targets)
          local gradLogSoftCPU = logsoft:backward(outputModelCPU, dE_dy)
@@ -83,14 +89,14 @@ function train(datasetExtractor, model, logsoft, loss, dropout, top5)
 
    loading_time = loading_time / nb_batches
    computing_time = computing_time / nb_batches
-   ce_train_error = ce_train_error / nb_batches
+   train_ce_error = train_ce_error / nb_batches
 
-   return ce_train_error, loading_time, computing_time
+   return train_ce_error, loading_time, computing_time
 end
 
 function test(datasetExtractor, model, logsoft, loss, dropout, top5)
 
-   local ce_test_error = 0
+   local test_ce_error = 0
    local loading_time = 0
    local computing_time = 0
    local nb_batches = datasetExtractor:getNbBatches(false)
@@ -130,7 +136,7 @@ function test(datasetExtractor, model, logsoft, loss, dropout, top5)
       local E = loss:forward(preds, targets)
 
       top5:batchAdd(preds, targets)
-      ce_test_error = ce_test_error + E
+      test_ce_error = test_ce_error + E
 
       computing_time = computing_time + timerComputing:time().real
    end
@@ -142,11 +148,11 @@ function test(datasetExtractor, model, logsoft, loss, dropout, top5)
       end
    end
 
-   ce_test_error = ce_test_error / nb_batches
+   test_ce_error = test_ce_error / nb_batches
    loading_time = loading_time / nb_batches
    computing_time = computing_time / nb_batches
 
-   return ce_test_error, loading_time, computing_time
+   return test_ce_error, loading_time, computing_time
 end
 
 
@@ -202,7 +208,7 @@ function train_and_test(dataset, model, logsoft, loss, dropout, statFile, logger
       train_top5:update()
       test_top5:update()
       logger:add{['% train accuracy'] = train_top5.result[1] * 100, ['% test accuracy'] = test_top5.result[1] * 100}
-      ce_logger:add{['ce train error'] = ce_train_error, ['ce test error'] = ce_test_error}
+      ce_logger:add{['ce train error'] = train_ce_error, ['ce test error'] = test_ce_error}
       logger_5:add{train_top5.result[5] * 100,test_top5.result[5] * 100,
       train_top5.result[1] * 100, test_top5.result[1] * 100}
 
