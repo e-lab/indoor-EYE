@@ -21,6 +21,8 @@ opt.subsample_name = opt.dataset
 opt.step           = false
 opt.verbose        = true
 
+torch.setdefaulttensortype('torch.FloatTensor')
+
 -- Requires --------------------------------------------------------------------
 require 'nnx'
 if opt.cuda then
