@@ -24,6 +24,17 @@ function get_model1(nbClasses, statFile, cuda)
    local submodel1 = nn.Sequential() --conv+pool+threshold layers
    local submodel2 = nn.Sequential() --linear layers
 
+   -- Keeping track of memory usage
+   local memory = {}
+   memory[0] = opt.batchSize * (nbClasses + 3*opt.side^2) -- gradInput + output (overhead)
+   memory.submodel1 = {}
+   memory.submodel1.val = {}
+   memory.submodel1.str = {}
+   memory.submodel1.val[0] = opt.batchSize * 3 * opt.side^2 -- + output
+   memory.submodel2 = {}
+   memory.submodel2.val = {}
+   memory.submodel2.str = {}
+
    -- Dropout in the input space
    local dropout = {}
    local DOidx = 1
