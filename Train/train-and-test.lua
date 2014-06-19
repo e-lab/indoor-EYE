@@ -96,7 +96,8 @@ function train(data, model, loss, dropout, top5)
          local y = model:forward(ims)
          local E = loss:forward(y, targets)
 
-         -- Catching NaNs on training cross-entropy
+         top5:batchAdd(y, targets)
+
          ce_train_error = ce_train_error + E
          local dE_dy = loss:backward(y, targets)
          model:backward(ims, dE_dy)
@@ -112,23 +113,6 @@ function train(data, model, loss, dropout, top5)
 
       if (ce_train_error < last_ce_train_error + 10) then
          trainedSuccessfully = true
-         -- Switching off the dropout
-         if opt.dropout > 0 or opt.inputDO > 0 then
-            for _,d in ipairs(dropout) do
-               d.train = false
-            end
-         end
-
-         -- Update confusion matrix
-         local y = model:forward(ims)
-         top5:batchAdd(y, targets)
-         -- Switching back on the dropout
-         if opt.dropout > 0 or opt.inputDO > 0 then
-            for _,d in ipairs(dropout) do
-               d.train = true
-            end
-         end
-
          last_ce_train_error = ce_train_error
          consecutiveFailures = 0
          t = t + 1
