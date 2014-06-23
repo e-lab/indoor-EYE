@@ -24,16 +24,16 @@ local optimState
 function train(datasetExtractor, model, logsoft, loss, dropout, top5)
    --train one iteration
    local nbThread = datasetExtractor:getNbThreads()
-   datasetExtractor:newShuffle(true)
+   datasetExtractor:newShuffle('train')
 
    for batch = 1, nbThread do
-      datasetExtractor:prepareBatch(batch, true)
+      datasetExtractor:prepareBatch(batch, 'train')
    end
 
    local train_ce_error = 0
    local loading_time = 0
    local computing_time = 0
-   local nb_batches = datasetExtractor:getNbBatches(true)
+   local nb_batches = datasetExtractor:getNbBatches('train')
 
    for batch = 1, nb_batches do
 
@@ -46,7 +46,7 @@ function train(datasetExtractor, model, logsoft, loss, dropout, top5)
 
       --prepare next batch
       if batch + nbThread <= nb_batches then
-         datasetExtractor:prepareBatch(batch + nbThread, true)
+         datasetExtractor:prepareBatch(batch + nbThread, 'train')
       end
 
       -- create closure to evaluate f(X) and df/dX
@@ -99,13 +99,13 @@ function test(datasetExtractor, model, logsoft, loss, dropout, top5)
    local test_ce_error = 0
    local loading_time = 0
    local computing_time = 0
-   local nb_batches = datasetExtractor:getNbBatches(false)
+   local nb_batches = datasetExtractor:getNbBatches('test')
 
    local nbThread = math.min(datasetExtractor:getNbThreads(), nb_batches)
-   datasetExtractor:newShuffle(false)
+   datasetExtractor:newShuffle('test')
 
    for batch = 1, nbThread do
-      datasetExtractor:prepareBatch(batch, false)
+      datasetExtractor:prepareBatch(batch, 'test')
    end
 
    -- Switching off the dropout
@@ -124,7 +124,7 @@ function test(datasetExtractor, model, logsoft, loss, dropout, top5)
       loading_time = loading_time + timerLoading:time().real
       --prepare next batch
       if batch + nbThread <= nb_batches then
-         datasetExtractor:prepareBatch(batch + nbThread, false)
+         datasetExtractor:prepareBatch(batch + nbThread, 'test')
       end
 
       -- test sample
@@ -196,7 +196,12 @@ function train_and_test(dataset, model, logsoft, loss, dropout, statFile, logger
       local train_ce_error, train_loading, train_computing = train(dataset, model, logsoft, loss, dropout, train_top5)
       local train_time = train_timer:time().real
 
-      -- (2) testing
+      -- (2) save the network
+      w = nil
+      dE_dw = nil
+      w, dE_dw = netToolkit.saveNet(model, opt.save_dir .. 'model-' .. epoch .. '.net', opt.verbose)
+
+      -- (3) testing
       if opt.verbose then
          print('==> Test ' .. epoch)
       end
@@ -204,9 +209,10 @@ function train_and_test(dataset, model, logsoft, loss, dropout, statFile, logger
       local test_ce_error, test_loading, test_computing = test(dataset, model, logsoft, loss, dropout, test_top5)
       local test_time = test_timer:time().real
 
-      -- (3) update loggers
+      -- (4) update loggers
       train_top5:update()
       test_top5:update()
+
       logger:add{['% train accuracy'] = train_top5.result[1] * 100, ['% test accuracy'] = test_top5.result[1] * 100}
       ce_logger:add{['ce train error'] = train_ce_error, ['ce test error'] = test_ce_error}
       logger_5:add{train_top5.result[5] * 100,test_top5.result[5] * 100,
@@ -221,7 +227,7 @@ function train_and_test(dataset, model, logsoft, loss, dropout, statFile, logger
       string.format("Epoch(min)\t\t%.2f\t\t%.2f", train_time/60, test_time / 60),
       string.format("Batch Loading(msec)\t%.3f\t\t%.3f", train_loading * 1000, test_loading * 1000),
       string.format("Batch Computing(msec)\t%.3f\t\t%.3f", train_computing* 1000, test_computing * 1000),
-      string.format("Batch Total(msec)\t%.3f\t\t%.3f", train_time/dataset:getNbBatches(true) * 1000, test_time /dataset:getNbBatches(false) * 1000),
+      string.format("Batch Total(msec)\t%.3f\t\t%.3f", train_time/dataset:getNbBatches('train') * 1000, test_time /dataset:getNbBatches('test') * 1000),
       string.format("Total time(min)\t%.2f", total_timer:time().real/60),
       '---------------------------------------------------------------')
 
@@ -238,10 +244,6 @@ function train_and_test(dataset, model, logsoft, loss, dropout, statFile, logger
          logger_5:plot()
       end
 
-      -- (4) save the network
-      w = nil
-      dE_dw = nil
-      w, dE_dw = netToolkit.saveNet(model, opt.save_dir .. 'model-' .. epoch .. '.net', opt.verbose)
 
       -- (5) log in file
       statFile:write(comment)
