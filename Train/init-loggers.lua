@@ -95,5 +95,5 @@ ce_logger:style{['ce train error'] = '-', ['ce test error'] = '-'}
 logger_5:style{'-', '-', '-', '-'}
 
 function getLoggers()
-   return statFile, logger, logger_5, ce_logger
+   return statFile, logger, ce_logger, logger_5
 end
