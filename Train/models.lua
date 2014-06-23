@@ -13,11 +13,11 @@ function get_model1(nbClasses, statFile, cuda)
    local filterSize  = {        9,  5,  3,  3,  3} --filter sizes in conv layers
    local convPadding = {        0,  0,  0,  0,  0}
    local convStride  = {        1,  1,  1,  1,  1}
-   local poolSize    = {        2,  2,  1,  1,  2}
+   local poolSize    = {        3,  3,  1,  1,  3}
    local poolStride  = {        2,  2,  1,  1,  2}
 
    --options for linear layers
-   local neuronsPerLinearLayer = {4096, 4096} --number of neurons in linear layer
+   local neuronsPerLinearLayer = {256, 256} --number of neurons in linear layer
 
    --neuralnet model consists of submodel1 and submodel2
    local model = nn.Sequential()
