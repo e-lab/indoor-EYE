@@ -21,12 +21,14 @@ local targets = torch.Tensor(opt.batchSize)
 local w, dE_dw
 local optimState
 
-function train(datasetExtractor, model, logsoft, loss, dropout, top5)
+function train(datasetExtractor, model, logsoft, loss, dropout, top5, epoch)
    --train one iteration
    local nbThread = datasetExtractor:getNbThreads()
-   datasetExtractor:newShuffle('train')
 
-   for batch = 1, nbThread do
+   datasetExtractor:newShuffle('train', 12)
+   local start_batch = 1
+
+   for batch = start_batch, start_batch + nbThread - 1 do
       datasetExtractor:prepareBatch(batch, 'train')
    end
 
@@ -35,7 +37,8 @@ function train(datasetExtractor, model, logsoft, loss, dropout, top5)
    local computing_time = 0
    local nb_batches = datasetExtractor:getNbBatches('train')
 
-   for batch = 1, nb_batches do
+
+   for batch = start_batch, nb_batches do
 
       xlua.progress(batch, nb_batches)
 
@@ -49,9 +52,13 @@ function train(datasetExtractor, model, logsoft, loss, dropout, top5)
          datasetExtractor:prepareBatch(batch + nbThread, 'train')
       end
 
+      -- saveWeight
+      w = nil
+      dE_dw = nil
+      w, dE_dw = netToolkit.saveNet(model, opt.save_dir .. 'backup-model-' .. (batch%40)  .. '.net', opt.verbose)
+
       -- create closure to evaluate f(X) and df/dX
       local eval_E = function (att)
-
          dE_dw:zero()
 
          local outputModelGPU = model:forward(ims)
@@ -66,7 +73,7 @@ function train(datasetExtractor, model, logsoft, loss, dropout, top5)
          if (not (E < 100)) then
             print('Sad', E)
             datasetExtractor.threads:terminate()
-            error 'Fails without detection'
+            error('Fails without detection, batch: ' .. batch)
          end
 
          local dE_dy = loss:backward(preds, targets)
@@ -158,6 +165,7 @@ end
 
 function train_and_test(dataset, model, logsoft, loss, dropout, statFile, logger, ce_logger, logger_5)
 
+
    w, dE_dw = model:getParameters()
 
    --init confusion matricies
@@ -180,6 +188,7 @@ function train_and_test(dataset, model, logsoft, loss, dropout, statFile, logger
    if opt.network ~= 'N/A' then
       -- (1) get the number of the epoch
       epoch = 1 + tonumber(string.match(opt.network, "%d+"))
+      print('start from epoch ' .. epoch)
    end
 
    local continue = true
@@ -193,7 +202,7 @@ function train_and_test(dataset, model, logsoft, loss, dropout, statFile, logger
          print('==> Train ' .. epoch)
       end
       local train_timer = torch.Timer()
-      local train_ce_error, train_loading, train_computing = train(dataset, model, logsoft, loss, dropout, train_top5)
+      local train_ce_error, train_loading, train_computing = train(dataset, model, logsoft, loss, dropout, train_top5, epoch)
       local train_time = train_timer:time().real
 
       -- (2) save the network
