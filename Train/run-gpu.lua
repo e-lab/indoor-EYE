@@ -19,9 +19,9 @@ require 'dataset-manager'
 
 -- Title definition -----------------------------------------------------------
 local title = [[
-_           _                         _   _ ______ _______
+ _           _                         _   _ ______ _______
 (_)         | |                       | \ | |  ____|__   __|
-_ _ __   __| | ___   ___  _ __ ______|  \| | |__     | |
+ _ _ __   __| | ___   ___  _ __ ______|  \| | |__     | |
 | | '_ \ / _` |/ _ \ / _ \| '__|______| . ` |  __|    | |
 | | | | | (_| | (_) | (_) | |         | |\  | |____   | |
 |_|_| |_|\__,_|\___/ \___/|_|         |_| \_|______|  |_|
@@ -32,11 +32,13 @@ _ _ __   __| | ___   ___  _ __ ______|  \| | |__     | |
 opt = lapp(title .. [[
 
 Dataset's parameters
---side            (default 128)        Training and testing image's side length (max 256)
---jitter          (default 0)          Introduce random crop for loweing overfitting
+--side     (default 128)        Training and testing image's side length (max 256)
+--jitter   (default 0)          Introduce random crop for loweing overfitting
+--dataset  (default 'indoor51') Name of imagenet subsample. Possible options ('class51', 'elab')
+
+Model's parameters
 --dropout         (default 0)          Dropout in MLP. Set it to 0 for disabling it, 0.5 for "standard" working value
 --inputDO         (default 0)          Input dropout. Set it to 0 for disabling it, 0.2 for "standard" working value
---subsample_name  (default 'indoor51') Name of imagenet subsample. Possible options ('class51', 'elab')
 
 Learning parameters
 --learningRate      (default 5e-2)
@@ -44,6 +46,7 @@ Learning parameters
 --weightDecay       (default 0   )
 --momentum          (default 0   )
 --batchSize         (default 128 )
+--renorm            (default 0   )     If every weight of a kernel are equal, it is the maximum value. (0 means no renormalisation)
 
 On screen output
 --plot                                  Plot training and testing accuracies
@@ -115,7 +118,7 @@ trainOpt.verbose = opt.verbose
 trainOpt.nbThreads = 4
 trainOpt.normInput = true
 
-local datasetExtractor = dmanager.TrainingExtractorAsync(opt.subsample_name, trainOpt)
+local datasetExtractor = dmanager.TrainingExtractorAsync(opt.dataset, trainOpt)
 
 --print train and test image sizes
 if verbose then

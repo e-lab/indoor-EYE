@@ -92,6 +92,26 @@ function train(datasetExtractor, model, logsoft, loss, dropout, top5, epoch)
       local timerComputing = torch.Timer()
       optim.sgd(eval_E, w, optimState)
       computing_time = computing_time + timerComputing:time().real
+
+      -- weight renormalisation
+      if (opt.renorm > 0) then
+         for _, module in pairs(model.modules[1].modules) do
+            if (module.__typename == 'nn.SpatialConvolutionCUDA') then
+               -- module.weight:renorm(2, 4, opt.renorm * module.kH * math.sqrt(module.nInputPlane))
+               module.weight:renorm(2, 4, opt.renorm)
+            end
+         end
+         for _, module in pairs(model.modules[2].modules) do
+            if (module.__typename == 'nn.Linear') then
+               -- module.weight:renorm(2, 4, opt.renorm * math.sqrt(module.weight:size(2)))
+               -- module.weight:renorm(2, 1, opt.renorm)
+               local norm = module.weight:norm(2)
+               if (norm > opt.renorm) then
+                   module.weight:mul(opt.renorm/norm)
+               end
+            end
+         end
+      end
    end
 
    loading_time = loading_time / nb_batches
