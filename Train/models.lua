@@ -175,7 +175,8 @@ function get_model1(nbClasses, statFile, cuda)
          submodel1.val:add(nn.Probe('Probing ' .. linear_layer.text))
       end
 
-      submodel2:add(nn.Threshold(0, 0))
+      -- submodel2:add(nn.Threshold(0, 0))
+      submodel2:add(nn.HardTanh())
       table.insert(memory.submodel2.val, 2 * outputMem)
       table.insert(memory.submodel2.str,'NL')
 

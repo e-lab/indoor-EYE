@@ -52,11 +52,6 @@ function train(datasetExtractor, model, logsoft, loss, dropout, top5, epoch)
          datasetExtractor:prepareBatch(batch + nbThread, 'train')
       end
 
-      -- saveWeight
-      w = nil
-      dE_dw = nil
-      w, dE_dw = netToolkit.saveNet(model, opt.save_dir .. 'backup-model-' .. (batch%40)  .. '.net', opt.verbose)
-
       -- create closure to evaluate f(X) and df/dX
       local eval_E = function (att)
          dE_dw:zero()
@@ -99,16 +94,6 @@ function train(datasetExtractor, model, logsoft, loss, dropout, top5, epoch)
             if (module.__typename == 'nn.SpatialConvolutionCUDA') then
                -- module.weight:renorm(2, 4, opt.renorm * module.kH * math.sqrt(module.nInputPlane))
                module.weight:renorm(2, 4, opt.renorm)
-            end
-         end
-         for _, module in pairs(model.modules[2].modules) do
-            if (module.__typename == 'nn.Linear') then
-               -- module.weight:renorm(2, 4, opt.renorm * math.sqrt(module.weight:size(2)))
-               -- module.weight:renorm(2, 1, opt.renorm)
-               local norm = module.weight:norm(2)
-               if (norm > opt.renorm) then
-                   module.weight:mul(opt.renorm/norm)
-               end
             end
          end
       end
