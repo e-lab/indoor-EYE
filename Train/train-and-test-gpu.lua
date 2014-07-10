@@ -53,9 +53,9 @@ function train(datasetExtractor, model, logsoft, loss, dropout, top5, epoch)
       end
 
       -- saveWeight
-      w = nil
-      dE_dw = nil
-      w, dE_dw = netToolkit.saveNet(model, opt.save_dir .. 'backup-model-' .. (batch%40)  .. '.net', opt.verbose)
+      -- w = nil
+      -- dE_dw = nil
+      -- w, dE_dw = netToolkit.saveNet(model, opt.save_dir .. 'backup-model-' .. (batch%40)  .. '.net', opt.verbose)
 
       -- create closure to evaluate f(X) and df/dX
       local eval_E = function (att)
