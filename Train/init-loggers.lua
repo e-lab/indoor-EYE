@@ -44,13 +44,15 @@ local function recover_loggers(epochInit)
    local logger = optim.Logger(opt.save_dir .. 'accuracy.log')
    local ce_logger = optim.Logger(opt.save_dir .. 'cross-entropy.log')
    local logger_5 = optim.Logger(opt.save_dir .. 'accuracy-5.log')
+   logger:setNames({'% train accuracy', '% test accuracy'})
+   ce_logger:setNames({'ce train error', 'ce test error'})
    logger_5:setNames({'% train top5', '% test top5',
    '% train top1', '% test top1'})
 
    -- (4) load backup data
    for ep = 1, epochInit do
-      logger:add{['% train accuracy'] = tmpAcc[2*ep-1], ['% test accuracy'] = tmpAcc[2*ep]}
-      ce_logger:add{['ce train error'] = tmpCE[2*ep-1], ['ce test error'] = tmpCE[2*ep]}
+      logger:add{tmpAcc[2*ep-1], tmpAcc[2*ep]}
+      ce_logger:add{tmpCE[2*ep-1], tmpCE[2*ep]}
       logger_5:add{tmpAcc5[4*ep-3], tmpAcc5[4*ep-2],
       tmpAcc5[4*ep-1], tmpAcc5[4*ep]}
    end
@@ -74,6 +76,8 @@ if (opt.network == 'N/A' or opt.network == 'model-0.net') then
    logger = optim.Logger(opt.save_dir .. 'accuracy.log')
    ce_logger = optim.Logger(opt.save_dir .. 'cross-entropy.log')
    logger_5 = optim.Logger(opt.save_dir .. 'accuracy-5.log')
+   logger:setNames({'% train accuracy', '% test accuracy'})
+   ce_logger:setNames({'ce train error', 'ce test error'})
    logger_5:setNames({'% train top5', '% test top5',
    '% train top1', '% test top1'})
 
@@ -90,8 +94,8 @@ else
    logger, ce_logger, logger_5 = recover_loggers(epochInit)
 end
 
-logger:style{['% train accuracy'] = '-', ['% test accuracy'] = '-'}
-ce_logger:style{['ce train error'] = '-', ['ce test error'] = '-'}
+logger:style{'-', '-'}
+ce_logger:style{'-', '-'}
 logger_5:style{'-', '-', '-', '-'}
 
 function getLoggers()
