@@ -116,7 +116,8 @@ trainOpt.jitter = opt.jitter
 trainOpt.batchSize = opt.batchSize
 trainOpt.verbose = opt.verbose
 trainOpt.nbThreads = 4
-trainOpt.normInput = true
+trainOpt.mean = 0
+trainOpt.std = 1
 
 local datasetExtractor = dmanager.TrainingExtractorAsync(opt.dataset, trainOpt)
 

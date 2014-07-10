@@ -227,8 +227,8 @@ function train_and_test(dataset, model, logsoft, loss, dropout, statFile, logger
       train_top5:update()
       test_top5:update()
 
-      logger:add{['% train accuracy'] = train_top5.result[1] * 100, ['% test accuracy'] = test_top5.result[1] * 100}
-      ce_logger:add{['ce train error'] = train_ce_error, ['ce test error'] = test_ce_error}
+      logger:add{train_top5.result[1] * 100, test_top5.result[1] * 100}
+      ce_logger:add{train_ce_error, test_ce_error}
       logger_5:add{train_top5.result[5] * 100,test_top5.result[5] * 100,
       train_top5.result[1] * 100, test_top5.result[1] * 100}
 
