@@ -53,10 +53,10 @@ On screen output
 --verbose                (default true) Show more output on screen
 
 Output folder
---save_dir (default './results/') Folder where the stats and models are saved
+--save_dir (string) Folder where the stats and models are saved
 
 CUDA parameters
---devid (default 1) device ID (if using CUDA)
+--devid (number) device ID (if using CUDA)
 
 Other parameters
 --num_threads       (default 6   )
@@ -76,6 +76,17 @@ if opt.verbose then
    for a,b in pairs(opt) do print('     + ' .. a .. ':', b) end
    print()
 end
+
+if (string.sub(opt.save_dir, 1, 2) ~= './') then
+   opt.save_dir = './' .. opt.save_dir
+end
+if (string.sub(opt.save_dir, -1) ~= '/') then
+   opt.save_dir = opt.save_dir .. '/'
+end
+if (paths.dirp(opt.save_dir)) then
+   error(string.format("the folder %s already exists, to avoid conflicts delete it or change save_dir name", opt.save_dir))
+end
+os.execute('mkdir -p ' .. opt.save_dir) --create folder for saving results
 
 -- Training with GPU ----------------------------------------------------------
 if opt.verbose then
@@ -107,7 +118,6 @@ torch.manualSeed(123)
 torch.setnumthreads(opt.num_threads) --some of data scripts may change numthreads, so we need to do it here
 
 print('Currently using ' .. torch.getnumthreads() .. ' threads')
-os.execute('mkdir -p ' .. opt.save_dir) --create folder for saving results
 
 -- Datasets --------------------------------------------------------------------
 local trainOpt = {}
