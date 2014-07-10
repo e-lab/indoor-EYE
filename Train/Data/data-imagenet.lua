@@ -6,7 +6,7 @@
 ----------------------------------------------------------------------
 
 require 'torch'
-require 'llthreads'
+--require 'llthreads'
 require 'sys'
 require 'image'
 
@@ -42,7 +42,7 @@ function load_data(data_file, info_file, sfile, fact)
    --prepareBatch: creates next batch for training or testing
    --copyBatch:    returns prepared batch
    -------------------------------------------------------------------------------
-
+   --[[
    local samples = torch.FloatTensor(opt.batchSize, opt.ncolors, opt.height, opt.width) --batch images
    local targets = torch.FloatTensor(opt.batchSize)                                     --batch labels
 
@@ -203,7 +203,7 @@ function load_data(data_file, info_file, sfile, fact)
          local jitter = opt.jitter
 
          if jitter > 0 and not istest then
-            local nnnn = dataset.extract_jitter[dataset.jitter[j]](dataset.data[j], h, w, jitter)
+            local nnnn = dataset.extract_jitter[dataset.jitter[j] ](dataset.data[j], h, w, jitter)
             samples[i]:copy(nnnn)
             dataset.jitter[i] = (dataset.jitter[i] + 3)%10
          else
@@ -226,6 +226,7 @@ function load_data(data_file, info_file, sfile, fact)
 
    dataset.nBatches = math.floor(dataset.nbSamples / opt.batchSize)
 
+   --]]
    return dataset
 end
 
