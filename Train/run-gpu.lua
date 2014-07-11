@@ -34,17 +34,17 @@ opt = lapp(title .. [[
 Dataset's parameters
 --side     (default 128)        Training and testing image's side length (max 256)
 --jitter   (default 0)          Introduce random crop for loweing overfitting
---dataset  (default 'indoor51') Name of imagenet subsample. Possible options ('class51', 'elab')
+--dataset  (default 'imagenet') Name of imagenet subsample. Possible options ('class51', 'elab')
 
 Model's parameters
---dropout         (default 0)          Dropout in MLP. Set it to 0 for disabling it, 0.5 for "standard" working value
+--dropout         (default 0.5)          Dropout in MLP. Set it to 0 for disabling it, 0.5 for "standard" working value
 --inputDO         (default 0)          Input dropout. Set it to 0 for disabling it, 0.2 for "standard" working value
 
 Learning parameters
 --learningRate      (default 5e-2)
 --learningRateDecay (default 1e-7)
---weightDecay       (default 0   )
---momentum          (default 0   )
+--weightDecay       (default 1e-5)   )
+--momentum          (default 0.6)
 --batchSize         (default 128 )
 --renorm            (default 0   )     If every weight of a kernel are equal, it is the maximum value. (0 means no renormalisation)
 
