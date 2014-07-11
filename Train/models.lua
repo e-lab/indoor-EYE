@@ -40,6 +40,7 @@ function get_model1(nbClasses, statFile, cuda)
    local DOidx = 1
    if opt.inputDO > 0 then
       dropout[DOidx] = nn.Dropout(opt.inputDO)
+      dropout[DOidx].updateGradInput = function () return nil end
       submodel1:add(dropout[DOidx])
       DOidx = DOidx + 1
       table.insert(memory.submodel1.val,4 * opt.batchSize * 3 * opt.side^2)
@@ -49,6 +50,7 @@ function get_model1(nbClasses, statFile, cuda)
    --transpose batch if cuda
    if cuda then
       local tmp = nn.Transpose({1,4},{1,3},{1,2})
+      tmp.updateGradInput = function () return nil end
       submodel1:add(tmp)
       table.insert(memory.submodel1.val,2 * opt.batchSize * 3 * opt.side^2)
       table.insert(memory.submodel1.str,'Trn')
@@ -85,6 +87,9 @@ function get_model1(nbClasses, statFile, cuda)
 
       convLayer.printable = true
       convLayer.text = 'Conv layer ' .. i
+      if (i == 1) then
+         convLayer.updateGradInput = function () return nil end
+      end
       submodel1:add(convLayer)
 
       -- Computing memory usage
