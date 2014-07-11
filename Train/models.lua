@@ -230,6 +230,40 @@ function get_model1(nbClasses, statFile, cuda)
    table.insert(memory.submodel2.val, 2 * outputMem)
    table.insert(memory.submodel2.str,'SM')
 
+
+  for i,layer in ipairs(submodel1.modules) do  -- initB = 0
+      if layer.weight then
+        layer:reset(0.01)
+     end
+   end
+
+   -- adjust all biases for threshold activation units
+   for i,layer in ipairs(submodel1.modules) do  -- initB = 0
+      if layer.bias then
+         layer.bias:fill(0)
+      end
+  end
+
+     submodel1.modules[5].bias:fill(1)
+     submodel1.modules[8].bias:fill(1)
+     submodel1.modules[12].bias:fill(1)
+    -- adjust all biases for threshold activation units
+  for i,layer in ipairs(submodel2.modules) do  -- initB = 0
+      if layer.weight then
+         layer:reset(0.01)
+      end
+   end
+
+
+   for i,layer in ipairs(submodel2.modules) do  -- initB = 0
+     if layer.bias then
+         layer.bias:fill(0)
+     end
+   end
+
+
+
+
    --add submodels to model
    model:add(submodel1)
    model:add(submodel2)
