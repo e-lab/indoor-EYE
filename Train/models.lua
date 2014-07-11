@@ -151,7 +151,7 @@ function get_model1(nbClasses, statFile, cuda)
    table.insert(memory.submodel2.str,'Rsh')
 
    -- If dropout is not 0
-   if (opt.dropout > 0 and Doidx==2) then
+   if (opt.dropout > 0) then
       dropout[DOidx] = nn.Dropout(opt.dropout)
       submodel2:add(dropout[DOidx])
       DOidx = DOidx + 1
@@ -185,7 +185,7 @@ function get_model1(nbClasses, statFile, cuda)
       table.insert(memory.submodel2.str,'NL')
 
       -- If dropout is not 0
-      if opt.dropout > 0 then
+      if (opt.dropout > 0  and Doidx==2) then
          dropout[DOidx] = nn.Dropout(opt.dropout)
          submodel2:add(dropout[DOidx])
          DOidx = DOidx + 1
