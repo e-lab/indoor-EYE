@@ -9,7 +9,7 @@
 
 -- Require packages -----------------------------------------------------------
 require 'torch'
-require 'nnx'
+require 'nn'
 require 'net-toolkit'
 local lapp = require 'pl.lapp'
 require 'sys'
