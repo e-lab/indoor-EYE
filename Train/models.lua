@@ -17,7 +17,7 @@ function get_model1(nbClasses, statFile, cuda)
    local poolStride  = {        2,  2,  1,  1,  2}
 
    --options for linear layers
-   local neuronsPerLinearLayer = {256, 256} --number of neurons in linear layer
+   local neuronsPerLinearLayer = {2048, 2048} --number of neurons in linear layer
 
    --neuralnet model consists of submodel1 and submodel2
    local model = nn.Sequential()
