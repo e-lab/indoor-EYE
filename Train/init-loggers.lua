@@ -90,7 +90,7 @@ else
    statFile:write('-------------------------------------------------------------------------------\n')
 
    -- (2) recover loggers
-   local epochInit = tonumber(string.match(opt.network, "%d+"))
+   local epochInit = tonumber(string.match(string.match(opt.network, "-%d+%.net"), "%d+"))
    logger, ce_logger, logger_5 = recover_loggers(epochInit)
 end
 

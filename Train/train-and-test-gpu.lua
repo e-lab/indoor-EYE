@@ -37,7 +37,6 @@ function train(datasetExtractor, model, logsoft, loss, dropout, top5, epoch)
    local computing_time = 0
    local nb_batches = datasetExtractor:getNbBatches('train')
 
-
    for batch = start_batch, nb_batches do
 
       xlua.progress(batch, nb_batches)
@@ -207,7 +206,7 @@ function train_and_test(dataset, model, logsoft, loss, dropout, statFile, logger
    -- recover logger if restaring the training
    if opt.network ~= 'N/A' then
       -- (1) get the number of the epoch
-      epoch = 1 + tonumber(string.match(opt.network, "%d+"))
+      epoch = 1 + tonumber(string.match(string.match(opt.network, "-%d+%.net"), "%d+"))
       print('start from epoch ' .. epoch)
    end
 

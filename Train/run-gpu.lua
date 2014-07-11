@@ -77,13 +77,10 @@ if opt.verbose then
    print()
 end
 
-if (string.sub(opt.save_dir, 1, 2) ~= './') then
-   opt.save_dir = './' .. opt.save_dir
-end
 if (string.sub(opt.save_dir, -1) ~= '/') then
    opt.save_dir = opt.save_dir .. '/'
 end
-if (paths.dirp(opt.save_dir)) then
+if (paths.dirp(opt.save_dir) and opt.network == 'N/A') then
    error(string.format("the folder %s already exists, to avoid conflicts delete it or change save_dir name", opt.save_dir))
 end
 os.execute('mkdir -p ' .. opt.save_dir) --create folder for saving results
