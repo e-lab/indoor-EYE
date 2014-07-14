@@ -25,7 +25,7 @@ function train(datasetExtractor, model, logsoft, loss, dropout, top5, epoch)
    --train one iteration
    local nbThread = datasetExtractor:getNbThreads()
 
-   datasetExtractor:newShuffle('train', 12)
+   datasetExtractor:newShuffle('train')
    local start_batch = 1
 
    for batch = start_batch, start_batch + nbThread - 1 do
