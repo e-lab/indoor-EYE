@@ -7,7 +7,7 @@
 
 -- Require packages -----------------------------------------------------------
 require 'torch'
-require 'nnx'
+require 'nn'
 require 'net-toolkit'
 ffi = require 'ffi'
 require 'pl'
