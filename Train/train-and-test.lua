@@ -428,7 +428,7 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
 
       --save model every 5 iterations
       if (i % 5 == 0) then
-         w, dE_dw = netToolkit.saveNet(model, opt.save_dir .. 'model-' .. i .. '.net', verbose)
+         w, dE_dw = netToolkit.saveNet(opt.save_dir .. 'model-' .. i .. '.net', model,)
          statFile:write(string.format('\nTraining & testing time for %d epochs: %.2f minutes\n', i, (trainTestTime.train.total:sum() + trainTestTime.test.total:sum())/60))
          statFile:write(string.format('Average training time per sample: %.3f ms\n', trainTestTime.train.perSample[{ {i-4,i} }]:mean() * 1000))
          statFile:write(string.format('Average testing time per sample: %.3f ms\n', trainTestTime.test.perSample[{ {i-4,i} }]:mean() * 1000))
