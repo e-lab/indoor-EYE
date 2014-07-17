@@ -54,7 +54,7 @@ function train(datasetExtractor, model, logsoft, loss, dropout, top5, epoch)
       -- saveWeight
       -- w = nil
       -- dE_dw = nil
-      -- w, dE_dw = netToolkit.saveNet(model, opt.save_dir .. 'backup-model-' .. (batch%40)  .. '.net', opt.verbose)
+      -- w, dE_dw = netToolkit.saveNet(opt.save_dir .. 'backup-model-' .. (batch%40)  .. '.net', model)
 
       -- create closure to evaluate f(X) and df/dX
       local eval_E = function (att)
@@ -227,7 +227,7 @@ function train_and_test(dataset, model, logsoft, loss, dropout, statFile, logger
       -- (2) save the network
       w = nil
       dE_dw = nil
-      w, dE_dw = netToolkit.saveNet(model, opt.save_dir .. 'model-' .. epoch .. '.net', opt.verbose)
+      w, dE_dw = netToolkit.saveNet(opt.save_dir .. 'model-' .. epoch .. '.net', model)
 
       -- (3) testing
       if opt.verbose then
