@@ -118,13 +118,16 @@ print('Currently using ' .. torch.getnumthreads() .. ' threads')
 
 -- Datasets --------------------------------------------------------------------
 local trainOpt = {}
-trainOpt.side = opt.side
-trainOpt.jitter = opt.jitter
-trainOpt.batchSize = opt.batchSize
-trainOpt.verbose = opt.verbose
-trainOpt.nbThreads = 4
-trainOpt.mean = 0
-trainOpt.std = 1
+trainOpt.side              = opt.side
+trainOpt.trainJitter       = opt.jitter
+trainOpt.trainJitterRandom = true
+trainOpt.testJitter        = opt.jitter
+trainOpt.testJitterRandom  = false
+trainOpt.batchSize         = opt.batchSize
+trainOpt.verbose           = opt.verbose
+trainOpt.nbThreads         = 4
+trainOpt.mean              = 0
+trainOpt.std               = 1
 
 local datasetExtractor = dmanager.TrainingExtractorAsync(opt.dataset, trainOpt)
 
