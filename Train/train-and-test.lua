@@ -591,6 +591,7 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
       end
 
       if (paths.filep('./.stop')) then
+         print(sys.COLORS.blue .. 'Stop flag detected. Exiting cleanly.')
          os.execute 'rm .stop'
          continue = false
       end
