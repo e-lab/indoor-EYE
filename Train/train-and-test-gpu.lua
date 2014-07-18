@@ -250,15 +250,15 @@ function train_and_test(dataset, model, logsoft, loss, dropout, statFile, logger
 
       local comment = string.format("\n%s\n%s\n%s\n%s\n%s\n\n%s\n%s\n%s\n%s\n\n%s\n%s\n\n",
       string.format('-------------------- Statistics epoch %3d ---------------------', epoch),
-      '\t\t\tTrain\t\tTest',
-      string.format("Top5\t\t\t%.2f\t\t%.2f", train_top5.result[5] * 100, test_top5.result[5] * 100),
-      string.format("Top1\t\t\t%.2f\t\t%.2f", train_top5.result[1] * 100, test_top5.result[1] * 100),
-      string.format("CE error\t\t%.4f\t\t%.4f", train_ce_error, test_ce_error),
-      string.format("Epoch(min)\t\t%.2f\t\t%.2f", train_time/60, test_time / 60),
-      string.format("Batch Loading(msec)\t%.3f\t\t%.3f", train_loading * 1000, test_loading * 1000),
-      string.format("Batch Computing(msec)\t%.3f\t\t%.3f", train_computing* 1000, test_computing * 1000),
-      string.format("Batch Total(msec)\t%.3f\t\t%.3f", train_time/dataset:getNbBatches('train') * 1000, test_time /dataset:getNbBatches('test') * 1000),
-      string.format("Total time(min)\t%.2f", total_timer:time().real/60),
+      '\t\t\t  Train\t\t  Test\n',
+      string.format("Top5\t\t\t%8.3f\t%8.3f", train_top5.result[5] * 100, test_top5.result[5] * 100),
+      string.format("Top1\t\t\t%8.3f\t%8.3f", train_top5.result[1] * 100, test_top5.result[1] * 100),
+      string.format("CE error\t\t%8.3f\t%8.3f", train_ce_error, test_ce_error),
+      string.format("Epoch(min)\t\t%8.3f\t%8.3f", train_time/60, test_time / 60),
+      string.format("Batch Loading(msec)\t%8.3f\t%8.3f", train_loading * 1000, test_loading * 1000),
+      string.format("Batch Computing(msec)\t%8.3f\t%8.3f", train_computing* 1000, test_computing * 1000),
+      string.format("Batch Total(msec)\t%8.3f\t%8.3f", train_time/dataset:getNbBatches('train') * 1000, test_time /dataset:getNbBatches('test') * 1000),
+      string.format("Total time(min)\t\t%8.3f", total_timer:time().real/60),
       '---------------------------------------------------------------')
 
       if (opt.verbose) then
