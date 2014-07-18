@@ -281,6 +281,7 @@ function train_and_test(dataset, model, logsoft, loss, dropout, statFile, logger
       epoch = epoch + 1
 
       if (paths.filep('./.stop')) then
+         print(sys.COLORS.blue .. 'Stop flag detected. Exiting cleanly.')
          os.execute 'rm .stop'
          continue = false
       end
