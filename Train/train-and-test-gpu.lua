@@ -26,6 +26,7 @@ function train(datasetExtractor, model, logsoft, loss, dropout, top5, epoch)
    local nbThread = datasetExtractor:getNbThreads()
 
    datasetExtractor:newShuffle('train')
+   datasetExtractor:newJitter('train')
    local start_batch = 1
 
    for batch = start_batch, start_batch + nbThread - 1 do
@@ -129,6 +130,7 @@ function test(datasetExtractor, model, logsoft, loss, dropout, top5)
 
    local nbThread = math.min(datasetExtractor:getNbThreads(), nb_batches)
    datasetExtractor:newShuffle('test')
+   datasetExtractor:newJitter('test')
 
    for batch = 1, nbThread do
       datasetExtractor:prepareBatch(batch, 'test')
