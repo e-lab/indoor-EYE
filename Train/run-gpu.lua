@@ -164,7 +164,7 @@ else
    if (verbose) then
       print('Loading network from file: ' .. opt.network)
    end
-   model, logsoft, loss, dropout = get_model2('results/' .. opt.network, true)
+   model, logsoft, loss, dropout = get_model2(opt.network, true)
 end
 collectgarbage() -- get rid of craps from the GPU's RAM
 
