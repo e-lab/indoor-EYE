@@ -223,26 +223,34 @@ function train_and_test(dataset, model, logsoft, loss, dropout, statFile, logger
          print('==> Train ' .. epoch)
       end
       local train_timer = torch.Timer()
-      local train_ce_error, train_loading, train_computing = train(dataset, model, logsoft, loss, dropout, train_top5, epoch)
+      -- local train_ce_error, train_loading, train_computing = train(dataset, model, logsoft, loss, dropout, train_top5, epoch)
+      local train_ce_error = 0
+      local train_loading = 0
+      local train_computing = 0
       local train_time = train_timer:time().real
 
       -- (2) save the network
-      w = nil
-      dE_dw = nil
-      w, dE_dw = netToolkit.saveNet(opt.save_dir .. 'model-' .. epoch .. '.net', model)
+      -- w = nil
+      -- dE_dw = nil
+      -- w, dE_dw = netToolkit.saveNet(opt.save_dir .. 'model-' .. epoch .. '.net', model)
 
       -- (3) testing
       if opt.verbose then
          print('==> Test ' .. epoch)
       end
       local test_timer = torch.Timer()
-      local test_ce_error, test_loading, test_computing = test(dataset, model, logsoft, loss, dropout, test_top5)
+      -- local test_ce_error, test_loading, test_computing = test(dataset, model, logsoft, loss, dropout, test_top5)
+      local test_ce_error = 0
+      local test_loading = 0
+      local test_computing = 0
       local test_time = test_timer:time().real
 
       -- (4) update loggers
-      train_top5:update()
-      test_top5:update()
+      -- train_top5:update()
+      -- test_top5:update()
 
+      train_top5.result:fill(1)
+      test_top5.result:fill(1)
       logger:add{train_top5.result[1] * 100, test_top5.result[1] * 100}
       ce_logger:add{train_ce_error, test_ce_error}
       logger_5:add{train_top5.result[5] * 100,test_top5.result[5] * 100,
@@ -285,6 +293,10 @@ function train_and_test(dataset, model, logsoft, loss, dropout, statFile, logger
       if (paths.filep('./.stop')) then
          print(sys.COLORS.blue .. 'Stop flag detected. Exiting cleanly.')
          os.execute 'rm .stop'
+         continue = false
+      end
+      if (epoch >= 50) then
+         print('50 epochs done')
          continue = false
       end
    end
