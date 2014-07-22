@@ -554,7 +554,7 @@ function train_and_test(trainData, testData, model, loss, plot, verbose, dropout
          -- (6) save the network
          w = nil
          dE_dw = nil
-         w, dE_dw = netToolkit.saveNet(opt.save_dir .. 'model-' .. i .. '.net', model)
+         w, dE_dw = netToolkit.saveNet(opt.save_dir .. 'model-' .. epoch .. '.net', model)
 
          -- (7) log in file
          if (epoch % 5 == 0) then
