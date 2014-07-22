@@ -66,7 +66,7 @@ On screen output
 
 CUDA parameters
    --cuda  (default true)
-   --devid (default 2   ) device ID (if using CUDA)
+   --devid (default 1   ) device ID (if using CUDA)
 
 Other parameters
    --verify_statistics
