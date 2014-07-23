@@ -44,7 +44,7 @@ Learning parameters
 --learningRate      (default 5e-2)
 --learningRateDecay (default 1e-7)
 --weightDecay       (default 0   )
---momentum          (default 0   )
+--momentum          (default 0.6 )
 --batchSize         (default 128 )
 --renorm            (default 0   )     If every weight of a kernel are equal, it is the maximum value. (0 means no renormalisation)
 
@@ -125,7 +125,6 @@ trainOpt.batchSize         = opt.batchSize
 trainOpt.nbThreads         = 4
 trainOpt.mean              = 0
 trainOpt.std               = 1
-
 local datasetExtractor = dmanager.TrainingExtractorAsync(opt.dataset, trainOpt)
 
 --print train and test image sizes

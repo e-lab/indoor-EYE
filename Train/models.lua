@@ -7,17 +7,18 @@
 -- Craft model ----------------------------------------------------------------
 function get_model1(nbClasses, statFile, cuda)
 
-   --options for (conv+pool+threshold) layers
+  --options for (conv+pool+threshold) layers
    local nConvLayers = 5 --number of (conv+pool+threshold) layers
-   local nFeatureMaps= {[0]=3, 32, 64, 96, 96, 64} --number of feature maps in conv layers
-   local filterSize  = {        9,  5,  3,  3,  3} --filter sizes in conv layers
-   local convPadding = {        0,  0,  0,  0,  0}
-   local convStride  = {        1,  1,  1,  1,  1}
-   local poolSize    = {        3,  3,  1,  1,  3}
-   local poolStride  = {        2,  2,  1,  1,  2}
+   local nFeatureMaps= {[0]=3, 48, 128, 128, 128,   128} --number of feature maps in conv layers
+   local filterSize  = {       10,   5,   3,   3,     3} --filter sizes in conv layers
+   local convPadding = {        3,   0,   0,   1,     1}
+   local convStride  = {        4,   1,   1,   1,     1}
+   local poolSize    = {        1,   2,   2,   2,     1}
+   local poolStride  = {        1,   2,   2,   2,     1}
 
    --options for linear layers
-   local neuronsPerLinearLayer = {256, 256} --number of neurons in linear layer
+   local neuronsPerLinearLayer = {4096, 4096} --number of neurons in linear layer
+
 
    --neuralnet model consists of submodel1 and submodel2
    local model = nn.Sequential()
@@ -47,15 +48,6 @@ function get_model1(nbClasses, statFile, cuda)
       table.insert(memory.submodel1.str,'Drp')
    end
 
-   --transpose batch if cuda
-   if cuda then
-      local tmp = nn.Transpose({1,4},{1,3},{1,2})
-      tmp.updateGradInput = function () return nil end
-      submodel1:add(tmp)
-      table.insert(memory.submodel1.val,2 * opt.batchSize * 3 * opt.side^2)
-      table.insert(memory.submodel1.str,'Trn')
-   end
-
    local mapsizes = {[0]=opt.side} --sizes of output of layers
    local nConnections = {[0]=0} --number of connections between i-th and (i-1) layer
    local trainParam = {[0] = 0} --number of hidden units in layer i
@@ -66,25 +58,23 @@ function get_model1(nbClasses, statFile, cuda)
    for i = 1, nConvLayers do
 
       local test_batch = torch.Tensor(opt.batchSize, nFeatureMaps[i - 1], mapsizes[i - 1], mapsizes[i - 1])
-
       local convLayer, poolLayer
 
       if cuda then
-         convLayer = nn.SpatialConvolutionCUDA(nFeatureMaps[i - 1], nFeatureMaps[i], filterSize[i], filterSize[i], convStride[i], convStride[i], convPadding[i])
-         poolLayer = nn.SpatialMaxPoolingCUDA(poolSize[i], poolSize[i], poolStride[i], poolStride[i])
+         convLayer = nn.SpatialConvolutionMM(nFeatureMaps[i - 1], nFeatureMaps[i], filterSize[i], filterSize[i], convStride[i], convStride[i], convPadding[i])
+         poolLayer = nn.SpatialMaxPooling(poolSize[i], poolSize[i], poolStride[i], poolStride[i])
          convLayer:cuda()
          poolLayer:cuda()
-         test_batch = nn.Transpose({1,4},{1,3},{1,2}):forward(test_batch):cuda()
+         test_batch= test_batch:cuda()
       else
          convLayer = nn.SpatialConvolutionMM(nFeatureMaps[i - 1], nFeatureMaps[i], filterSize[i], filterSize[i])
-         -- convLayer = nn.SpatialConvolution(nFeatureMaps[i - 1], nFeatureMaps[i], filterSize[i], filterSize[i], convStride[i], convStride[i])
          poolLayer = nn.SpatialMaxPooling(poolSize[i], poolSize[i], poolStride[i], poolStride[i])
       end
-
       --get layer sizes
+      
       r1 = convLayer:forward(test_batch)
       r2 = poolLayer:forward(r1)
-
+      
       convLayer.printable = true
       convLayer.text = 'Conv layer ' .. i
       if (i == 1) then
@@ -112,34 +102,18 @@ function get_model1(nbClasses, statFile, cuda)
          outputMem = r2:size(1)*r2:size(2)*r2:size(3)*r2:size(4)
       end
 
-      if cuda then
-         mapsizes[i] = poolLayer.output:size(2)
-      else
-         mapsizes[i] = poolLayer.output:size(3)
-      end
+      mapsizes[i] = poolLayer.output:size(3)
+      
       trainParam[i] = convLayer.weight:size(1) * convLayer.weight:size(2)
-      if cuda then
-         trainParam[i] = trainParam[i] * convLayer.weight:size(3) * convLayer.weight:size(4)
-      end
+      
       trainParam[i] = trainParam[i] + nFeatureMaps[i]
       nConnections[i] = trainParam[i] * ((mapsizes[i - 1] - filterSize[i] + 1) / convStride[i]) ^ 2
 
-      if cuda then
-         nHiddenNeurons[i] = poolLayer.output:size(2) * poolLayer.output:size(3) * nFeatureMaps[i]
-      else
-         nHiddenNeurons[i] = poolLayer.output:size(3) * poolLayer.output:size(4) * nFeatureMaps[i]
-      end
+      nHiddenNeurons[i] = poolLayer.output:size(3) * poolLayer.output:size(4) * nFeatureMaps[i]
 
       submodel1:add(nn.Threshold(0,0))
       table.insert(memory.submodel1.val, 2 * outputMem)
       table.insert(memory.submodel1.str,'NL')
-   end
-
-   --transpose batch if cuda
-   if cuda then
-      submodel1:add(nn.Transpose({4,1},{4,2},{4,3}))
-      table.insert(memory.submodel1.val, 2 * r2:size(1)*r2:size(2)*r2:size(3)*r2:size(4))
-      table.insert(memory.submodel1.str,'Trn')
    end
 
    memory.submodel1.val[0] = memory.submodel1.val[0] + r2:size(1)*r2:size(2)*r2:size(3)*r2:size(4)
