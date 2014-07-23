@@ -120,7 +120,7 @@ print('Currently using ' .. torch.getnumthreads() .. ' threads')
 local trainOpt = {}
 trainOpt.side              = opt.side
 trainOpt.trainJitter       = opt.jitter
-trainOpt.trainJitterRandom = false
+trainOpt.trainJitterMode   = 'random'
 trainOpt.batchSize         = opt.batchSize
 trainOpt.nbThreads         = 4
 trainOpt.mean              = 0
