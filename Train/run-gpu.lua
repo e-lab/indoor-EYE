@@ -117,6 +117,8 @@ torch.setnumthreads(opt.num_threads) --some of data scripts may change numthread
 print('Currently using ' .. torch.getnumthreads() .. ' threads')
 
 -- Datasets --------------------------------------------------------------------
+dmanager.initPath(opt.devid)
+
 local trainOpt = {}
 trainOpt.side              = opt.side
 trainOpt.trainJitter       = opt.jitter
