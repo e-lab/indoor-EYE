@@ -44,7 +44,7 @@ Learning parameters
 --learningRate      (default 5e-2)
 --learningRateDecay (default 1e-7)
 --weightDecay       (default 0   )
---momentum          (default 0.6 )
+--momentum          (default 0   )
 --batchSize         (default 128 )
 --renorm            (default 0   )     If every weight of a kernel are equal, it is the maximum value. (0 means no renormalisation)
 
