@@ -7,17 +7,17 @@
 -- Craft model ----------------------------------------------------------------
 function get_model1(nbClasses, statFile, cuda)
 
-  --options for (conv+pool+threshold) layers
-   local nConvLayers = 5 --number of (conv+pool+threshold) layers
-   local nFeatureMaps= {[0]=3, 48, 128, 128, 128,   128} --number of feature maps in conv layers
-   local filterSize  = {       10,   5,   3,   3,     3} --filter sizes in conv layers
-   local convPadding = {        3,   0,   0,   1,     1}
-   local convStride  = {        4,   1,   1,   1,     1}
-   local poolSize    = {        1,   2,   2,   2,     1}
-   local poolStride  = {        1,   2,   2,   2,     1}
+   --options for (conv+pool+threshold) layers
+   local nConvLayers = 3 --number of (conv+pool+threshold) layers
+   local nFeatureMaps= {[0]=3, 16, 32, 32} --number of feature maps in conv layers
+   local filterSize  = {        9,  9,  9} --filter sizes in conv layers
+   local convPadding = {        0,  0,  0}
+   local convStride  = {        4,  1,  1}
+   local poolSize    = {        1,  2,  2}
+   local poolStride  = {        1,  2,  2}
 
    --options for linear layers
-   local neuronsPerLinearLayer = {4096, 4096} --number of neurons in linear layer
+   local neuronsPerLinearLayer = {128, 128} --number of neurons in linear layer
 
 
    --neuralnet model consists of submodel1 and submodel2
@@ -71,10 +71,10 @@ function get_model1(nbClasses, statFile, cuda)
          poolLayer = nn.SpatialMaxPooling(poolSize[i], poolSize[i], poolStride[i], poolStride[i])
       end
       --get layer sizes
-      
+
       r1 = convLayer:forward(test_batch)
       r2 = poolLayer:forward(r1)
-      
+
       convLayer.printable = true
       convLayer.text = 'Conv layer ' .. i
       if (i == 1) then
@@ -103,9 +103,9 @@ function get_model1(nbClasses, statFile, cuda)
       end
 
       mapsizes[i] = poolLayer.output:size(3)
-      
+
       trainParam[i] = convLayer.weight:size(1) * convLayer.weight:size(2)
-      
+
       trainParam[i] = trainParam[i] + nFeatureMaps[i]
       nConnections[i] = trainParam[i] * ((mapsizes[i - 1] - filterSize[i] + 1) / convStride[i]) ^ 2
 
