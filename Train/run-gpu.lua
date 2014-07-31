@@ -61,7 +61,8 @@ CUDA parameters
 Other parameters
 --num_threads       (default 6   )
 --probe                            Prints to screen feature maps stats after every training iteration
---network           (default N/A ) Load specified net from file. Default is "Not Available" -> new net is generated
+--network           (default N/A ) Load specified net from file. Default is "Not Available" you have to feed a network!!! 
+--classifier        (default N/A)  Load the classifier from file. Default is "Not Available" -> new net is generated
 ]])
 
 torch.setdefaulttensortype('torch.FloatTensor')
@@ -157,15 +158,24 @@ print '==> Start Training'
 --get classifier and loss function
 local model, logsoft, loss, dropout
 if opt.network == 'N/A' then
-   model, logsoft, loss, dropout = get_model1(#datasetExtractor:getClasses(), statFile, true) --(classifier.lua)
+   assert(false)
 else
    if (verbose) then
       print('Loading network from file: ' .. opt.network)
    end
-   model, logsoft, loss, dropout = get_model2(opt.network, true)
+   model = get_model2(opt.network, true)
+   sizeNeuron = model.modules[2].modules[#model.modules[2]].weight:size(2)
+   model.modules[2].modules[#model.modules[2]] = nil
 end
+
+if opt.classifier == 'N/A' then 
+   classifier, logsoft, loss = get_model3(sizeNeuron, #datasetExtractor:getClasses(), true) --(classifier.lua)
+else 
+   classifier, logsoft, loss = get_model2(opt.network, true)
+end 
+
 collectgarbage() -- get rid of craps from the GPU's RAM
 
 --train
-train_and_test(datasetExtractor, model, logsoft, loss, dropout, statFile, logger, ce_logger, logger_5) --(train-and-test.lua)
+train_and_test(datasetExtractor, model, classifier, logsoft, loss, dropout, statFile, logger, ce_logger, logger_5) --(train-and-test.lua)
 -------------------------------------------------------------------------------

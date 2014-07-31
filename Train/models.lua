@@ -299,3 +299,28 @@ function get_model2(networkFile, cuda)
    return model, logsoft, loss, dropout
 
 end
+
+
+-- Craft model ----------------------------------------------------------------
+function get_model3(sizeNeuron, nbClasses, cuda)
+
+
+   local linear_layer = nn.Linear(sizeNeuron, nbClasses)
+   local model = nn.Sequential()
+
+   --log probabilities
+   local logsoft = nn.LogSoftMax()
+
+   model:add(linear_layer)
+
+   -- Loss: NLL
+   local loss = nn.ClassNLLCriterion()
+
+   if cuda then
+      model:cuda()
+   end
+
+   --print(model.modules)
+   return model, logsoft, loss
+
+end
