@@ -21,7 +21,7 @@ local targets = torch.Tensor(opt.batchSize)
 local w, dE_dw
 local optimState
 
-function train(datasetExtractor, model, logsoft, loss, dropout, top5, epoch)
+function train(datasetExtractor, model, classifier, logsoft, loss, dropout, top5, epoch)
    --train one iteration
    local nbThread = datasetExtractor:getNbThreads()
 
@@ -63,8 +63,11 @@ function train(datasetExtractor, model, logsoft, loss, dropout, top5, epoch)
 
          local outputModelGPU = model:forward(ims)
          cutorch.synchronize()
-         local outputModelCPU = outputModelGPU:float()
-         local preds = logsoft:forward(outputModelCPU)
+
+         local outputClassGPU = classifier:forward(outputModelGPU)
+
+         local outputClassCPU = outputClassGPU:float()
+         local preds = logsoft:forward(outputClassCPU)
          local E = loss:forward(preds, targets)
 
          top5:batchAdd(preds, targets)
@@ -77,11 +80,11 @@ function train(datasetExtractor, model, logsoft, loss, dropout, top5, epoch)
          end
 
          local dE_dy = loss:backward(preds, targets)
-         local gradLogSoftCPU = logsoft:backward(outputModelCPU, dE_dy)
+         local gradLogSoftCPU = logsoft:backward(outputClassCPU, dE_dy)
 
          -- on GPU
          local gradLogSoftGPU = gradLogSoftCPU:cuda()
-         model:backward(ims, gradLogSoftGPU)
+         classifier:backward(outputModelGPU, gradLogSoftGPU)
          cutorch.synchronize()
 
          return E, dE_dw
@@ -93,7 +96,7 @@ function train(datasetExtractor, model, logsoft, loss, dropout, top5, epoch)
       optim.sgd(eval_E, w, optimState)
       computing_time = computing_time + timerComputing:time().real
 
-      -- weight renormalisation
+      --[[ weight renormalisation
       if (opt.renorm > 0) then
          for _, module in pairs(model.modules[1].modules) do
             if (module.__typename == 'nn.SpatialConvolutionCUDA') then
@@ -111,7 +114,7 @@ function train(datasetExtractor, model, logsoft, loss, dropout, top5, epoch)
                end
             end
          end
-      end
+      end]]
    end
 
    loading_time = loading_time / nb_batches
@@ -121,7 +124,7 @@ function train(datasetExtractor, model, logsoft, loss, dropout, top5, epoch)
    return train_ce_error, loading_time, computing_time
 end
 
-function test(datasetExtractor, model, logsoft, loss, dropout, top5)
+function test(datasetExtractor, model, classifier, logsoft, loss, dropout, top5)
 
    local test_ce_error = 0
    local loading_time = 0
@@ -156,11 +159,15 @@ function test(datasetExtractor, model, logsoft, loss, dropout, top5)
       end
 
       -- test sample
+
+
       local timerComputing = torch.Timer()
       local outputModelGPU = model:forward(ims)
       cutorch.synchronize()
-      local outputModelCPU = outputModelGPU:float()
-      local preds = logsoft:forward(outputModelCPU)
+      local outputClassGPU = classifier:forward(outputModelGPU)
+
+      local outputClassCPU = outputClassGPU:float()
+      local preds = logsoft:forward(outputClassCPU)
       local E = loss:forward(preds, targets)
 
       top5:batchAdd(preds, targets)
@@ -184,10 +191,10 @@ function test(datasetExtractor, model, logsoft, loss, dropout, top5)
 end
 
 
-function train_and_test(dataset, model, logsoft, loss, dropout, statFile, logger, ce_logger, logger_5)
+function train_and_test(dataset, model, classifier, logsoft, loss, dropout, statFile, logger, ce_logger, logger_5)
 
 
-   w, dE_dw = model:getParameters()
+   w, dE_dw = classifier:getParameters()
 
    --init confusion matricies
    local nb_classes = #dataset:getClasses()
@@ -223,20 +230,20 @@ function train_and_test(dataset, model, logsoft, loss, dropout, statFile, logger
          print('==> Train ' .. epoch)
       end
       local train_timer = torch.Timer()
-      local train_ce_error, train_loading, train_computing = train(dataset, model, logsoft, loss, dropout, train_top5, epoch)
+      local train_ce_error, train_loading, train_computing = train(dataset, model, classifier, logsoft, loss, dropout, train_top5, epoch)
       local train_time = train_timer:time().real
 
       -- (2) save the network
       w = nil
       dE_dw = nil
-      w, dE_dw = netToolkit.saveNet(opt.save_dir .. 'model-' .. epoch .. '.net', model)
+      w, dE_dw = netToolkit.saveNet(opt.save_dir .. 'classifier-' .. epoch .. '.net', classifier)
 
       -- (3) testing
       if opt.verbose then
          print('==> Test ' .. epoch)
       end
       local test_timer = torch.Timer()
-      local test_ce_error, test_loading, test_computing = test(dataset, model, logsoft, loss, dropout, test_top5)
+      local test_ce_error, test_loading, test_computing = test(dataset, model, classifier, logsoft, loss, dropout, test_top5)
       local test_time = test_timer:time().real
 
       -- (4) update loggers
