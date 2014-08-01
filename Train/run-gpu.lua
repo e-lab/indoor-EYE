@@ -81,7 +81,7 @@ end
 if (string.sub(opt.save_dir, -1) ~= '/') then
    opt.save_dir = opt.save_dir .. '/'
 end
-if (paths.dirp(opt.save_dir) and opt.network == 'N/A') then
+if (paths.dirp(opt.save_dir) and opt.classifier == 'N/A') then
    error(string.format("the folder %s already exists, to avoid conflicts delete it or change save_dir name", opt.save_dir))
 end
 os.execute('mkdir -p ' .. opt.save_dir) --create folder for saving results
@@ -164,8 +164,9 @@ else
       print('Loading network from file: ' .. opt.network)
    end
    model = get_model2(opt.network, true)
-   sizeNeuron = model.modules[2].modules[#model.modules[2]].weight:size(2)
-   model.modules[2].modules[#model.modules[2]] = nil
+   local no_layer = (model.modules[2]:size())
+   sizeNeuron = model.modules[2].modules[no_layer].weight:size(2)
+   model.modules[2].modules[no_layer] = nil
 end
 
 if opt.classifier == 'N/A' then 
