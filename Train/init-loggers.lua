@@ -69,7 +69,7 @@ local ce_logger
 --init logger for train and test accuracy-5
 local logger_5
 
-if (opt.network == 'N/A' or opt.network == 'model-0.net') then
+if (opt.classifier == 'N/A' or opt.classifier == 'classifier-0.net') then
    -- Open file in re-write mode (NOT append)
    statFile = io.open(opt.save_dir .. 'stat.txt','w+')
 
@@ -90,7 +90,7 @@ else
    statFile:write('-------------------------------------------------------------------------------\n')
 
    -- (2) recover loggers
-   local epochInit = tonumber(string.match(string.match(opt.network, "-%d+%.net"), "%d+"))
+   local epochInit = tonumber(string.match(string.match(opt.classifier, "-%d+%.net"), "%d+"))
    logger, ce_logger, logger_5 = recover_loggers(epochInit)
 end
 

@@ -213,9 +213,9 @@ function train_and_test(dataset, model, classifier, logsoft, loss, dropout, stat
 
    local epoch = 1
    -- recover logger if restaring the training
-   if opt.network ~= 'N/A' then
+   if opt.classifier ~= 'N/A' then
       -- (1) get the number of the epoch
-      epoch = 1 + tonumber(string.match(string.match(opt.network, "-%d+%.net"), "%d+"))
+      epoch = 1 + tonumber(string.match(string.match(opt.classifier, "-%d+%.net"), "%d+"))
       print('start from epoch ' .. epoch)
    end
 
