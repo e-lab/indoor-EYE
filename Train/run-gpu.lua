@@ -171,9 +171,9 @@ end
 
 if opt.classifier == 'N/A' then 
    classifier, logsoft, loss = get_model3(sizeNeuron, #datasetExtractor:getClasses(), true) --(classifier.lua)
-else 
-   classifier, logsoft, loss = get_model2(opt.network, true)
-end 
+else
+   classifier, logsoft, loss = get_model2(opt.classifier, true)
+end
 
 collectgarbage() -- get rid of craps from the GPU's RAM
 
