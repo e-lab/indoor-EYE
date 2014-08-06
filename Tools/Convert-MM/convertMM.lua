@@ -20,7 +20,7 @@ local dW = 4
 local dH = 4
 
 local m_tmp = network.modules[1].modules[1]
-local conv_tmp = nn.SpatialConvolution(m_tmp.nInputPlane, m_tmp.nOutputPlane, m_tmp.kW, m_tmp.kH, dW, dH)
+local conv_tmp = nn.SpatialConvolution(m_tmp.nInputPlane, m_tmp.nOutputPlane, m_tmp.kW, m_tmp.kH, dW, dH):float()
 conv_tmp.weight = m_tmp.weight:reshape(m_tmp.nOutputPlane, m_tmp.nInputPlane, m_tmp.kW, m_tmp.kH)
 conv_tmp.bias   = m_tmp.bias
 
