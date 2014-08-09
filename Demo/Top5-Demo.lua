@@ -30,7 +30,7 @@ local title = [[
 opt = lapp(title .. [[
 --temp_dir       (default '../Train/temp-data/') Location of test dataset
 --subsample_name (default 'indoor51')            Name of imagenet subsample. Possible options ('class51', 'elab')
---model          (default 'model-90.net'       ) Model's name
+--model          (string            )            Model's name
 --histogram                                      Shows prediction's histogram
 --imageSide      (default 128                  ) Image's side length
 --camera                                         Switch to camera input
@@ -86,6 +86,7 @@ end
 
 -- Loading classes' names
 dofile('../Train/Data/indoor-classes.lua')
+--classes = {{'Torso',{1}},{'Body',{2}},{'Bckg',{3}}} -- for INRIA
 
 -- Build window (not final solution)
 if opt.camera then
@@ -172,8 +173,9 @@ function show(idx)
 
    -- Printing first 5 most likely predictions
    c = opt.camera and z or 0
-   for i = 1,5 do
+   for i = 1,5 do -- or 3, for INRIA
       p = math.exp(sortedOutput[i])
+      --p = (sortedOutput[i]) -- for IRIA
       win:rectangle(10*z+20*c,60*c+(4+25 * i)*z,p*(190-20)*z,2*z)
       win:moveto(10*z+20*c,60*c+25 * i*z)
       if guess[i] == l and not opt.camera then
