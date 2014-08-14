@@ -1,8 +1,7 @@
 --------------------------------------------------------------------------------
--- Top5Demo
+-- Person-Demo
 --------------------------------------------------------------------------------
--- Displays the top 5 guesses of the network for the current image.
--- Current image can be drawn from the testing dataset or from camera.
+-- Demo for INRIA dataset person detector
 --------------------------------------------------------------------------------
 
 -- Requires --------------------------------------------------------------------
@@ -15,14 +14,12 @@ require 'gnuplot'
 
 -- Title definition -----------------------------------------------------------
 local title = [[
-           _______         _____       _____
-          |__   __|       | ____|     |  __ \
-             | | ___  _ __| |__ ______| |  | | ___ _ __ ___   ___
-             | |/ _ \| '_ \___ \______| |  | |/ _ \ '_ ` _ \ / _ \
-             | | (_) | |_) |__) |     | |__| |  __/ | | | | | (_) |
-             |_|\___/| .__/____/      |_____/ \___|_| |_| |_|\___/
-                     | |
-                     |_|
+   _____                                   _      _            _
+  |  __ \                                 | |    | |          | |
+  | |__) |__ _ __ ___  ___  _ __ ______ __| | ___| |_ ___  ___| |_ ___  _ __
+  |  ___/ _ \ '__/ __|/ _ \| '_ \______/ _` |/ _ \ __/ _ \/ __| __/ _ \| '__|
+  | |  |  __/ |  \__ \ (_) | | | |    | (_| |  __/ ||  __/ (__| || (_) | |
+  |_|   \___|_|  |___/\___/|_| |_|     \__,_|\___|\__\___|\___|\__\___/|_|
 
 ]]
 
@@ -85,8 +82,8 @@ else
 end
 
 -- Loading classes' names
-dofile('../Train/Data/indoor-classes.lua')
---classes = {{'Torso',{1}},{'Body',{2}},{'Bckg',{3}}} -- for INRIA
+classes = {{'Torso',{1}},{'Body',{2}},{'Bckg',{3}}} -- for INRIA
+cheatClasses = {'Person', 'Background'}
 
 -- Build window (not final solution)
 if opt.camera then
@@ -160,35 +157,31 @@ function show(idx)
 
    -- If cam, draw eye and write some text
    if opt.camera then
-      --[[win:rectangle(x1,y1,eye,eye)
-      win:setcolor('black')
-      win:stroke()--]]
       win:moveto(30*z,45*z)
       win:setcolor(.1,.7,1)
-      win:show("Top 5 predictions' probability")
+      win:show("Person-image conditional probability")
    end
 
-   -- Computing index of decreasing value ordered prob.
-   local sortedOutput, guess = output:sort(true)
-
-   -- Printing first 5 most likely predictions
+   -- Computing conditional probability
    c = opt.camera and z or 0
-   for i = 1,5 do -- or 3, for INRIA
-      p = math.exp(sortedOutput[i])
-      --p = (sortedOutput[i]) -- for INRIA
-      win:rectangle(10*z+20*c,60*c+(4+25 * i)*z,p*(190-20)*z,2*z)
+   p = {}
+   p[1] = output[1] + output[2]
+   p[2] = output[3]
+
+   -- Visualising
+   for i = 1, 2 do
+      win:rectangle(10*z+20*c,60*c+(4+25 * i)*z,p[i]*(190-20)*z,2*z)
       win:moveto(10*z+20*c,60*c+25 * i*z)
-      if guess[i] == l and not opt.camera then
-         win:setcolor('red')
-      elseif p > .5 then
+      if p[i] > .5 then
          win:setcolor(.3,.8,.3)
       else
          win:setcolor('white')
       end
       win:fill()
-      predictionStr = string.format('%s (%.2f%%)', classes[guess[i]][1], p*100)
+      predictionStr = string.format('%s (%.2f%%)', cheatClasses[i], p[i]*100)
       win:show(predictionStr)
    end
+
 end
 
 -- While loop: running program
