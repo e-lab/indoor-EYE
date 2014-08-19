@@ -42,7 +42,7 @@ torch.setdefaulttensortype('torch.FloatTensor')
 netPath = opt.model
 -- netPath = '/home/atcold/work/indoor-EYE-results/' .. opt.model
 -- netPath = '/Users/atcold/Work/Vision/DeconvNet/SW07C/' .. opt.model
-net = torch.load(netPath)
+net = torch.load(netPath, 'ascii')
 
 -- Iterative function definition for disabling the dropouts
 local function disableDropout(module)
@@ -74,8 +74,8 @@ local resolutions = {
 
 if opt.camera then
    cam = image.Camera{width = resolutions[opt.camRes].w, height = resolutions[opt.camRes].h}
-   local statPath = string.gsub(netPath,'%a+%-%d+%.net','preproc.t7')
-   stat = torch.load(statPath)
+   local statPath = string.gsub(netPath,'%a+%-%d+%.net.ascii','preproc.t7.ascii')
+   stat = torch.load(statPath, 'ascii')
 else
    local f = opt.temp_dir .. 'test.t7'
    testData = torch.load(f)
