@@ -105,6 +105,11 @@ z   = opt.camera and eye / 128 / 4 or 1 -- zoom
 -- Set font size to a visible dimension
 win:setfontsize(20*z)
 
+
+-- profiling timers
+timer = torch.Timer()
+t_loop = 1
+
 function show(idx)
    local input, l, c, leg, crop
    if opt.camera then
@@ -159,7 +164,8 @@ function show(idx)
    if opt.camera then
       win:moveto(30*z,45*z)
       win:setcolor(.1,.7,1)
-      win:show("Person-image conditional probability")
+      loopStr = 'Loop fps: ' .. 1/t_loop
+      win:show(loopStr)
    end
 
    -- Computing conditional probability
@@ -191,7 +197,9 @@ end
 
 i = 1
 while win:valid() do
+   timer:reset()
    show(i)
+   t_loop = timer:time().real
    i = i+1
    if not opt.camera then
       io.read()
