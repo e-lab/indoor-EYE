@@ -204,4 +204,5 @@ while win:valid() do
    if not opt.camera then
       io.read()
    end
+   collectgarbage()
 end
