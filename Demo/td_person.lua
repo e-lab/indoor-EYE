@@ -27,6 +27,7 @@ opt = lapp(title .. [[
 --imageSide      (default 149                  ) Image's side length
 --camRes         (default VGA)                   Camera resolution ([VGA]|FWVGA|HD|FHD)
 --fps            (default 10                   ) Frames per second (camera setting)
+--pdt            (default 0.5)                   Detection threshold to detect person vs background
 ]])
 
 io.write(title)
@@ -86,8 +87,9 @@ local z   = opt.camera and eye / 128 / 4 or 1 -- zoom
 local timer = torch.Timer()
 local t_loop = 1
 
+local frame, crop
 function main_loop()
-   local input, output, w, l, c, leg, crop, frame
+   local input, output, w, l, c, leg
    frame = cam:forward()
    crop = image.crop(frame, x1, y1, x2, y2)
    input = image.scale(crop,'^' .. opt.imageSide)
@@ -115,7 +117,21 @@ while true do
    timer:reset()
    main_loop()
    t_loop = timer:time().real
-   i = i+1
+
+   -- transmit frame to server:
+   -- curl --user admin:admin --form uploadimage=@site.jpg http://elab-gpu3.ecn.purdue.edu:8080/upload.html
+   if p[1] > opt.pdt then --detection_threshold
+      -- write image with person to jpeg image file on a ramdisk (to save time and save the SD card!)
+      local imageLocation = "/mnt/ramdisk/person.jpg"
+      image.saveJPG(imageLocation, crop)
+      local serverPage = "http://elab-gpu3.ecn.purdue.edu:8080/upload.html"
+      local osString = "curl --user admin:admin --form uploadimage=@" .. imageLocation .. " " .. serverPage
+      os.execute(osString)
+   end
+
+   -- print logbook:
    print("Iteration: ", i, " Loop fps: ", 1/t_loop, predictionStr)
+   
    collectgarbage()
+   i = i+1
 end
