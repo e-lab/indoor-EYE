@@ -10,7 +10,6 @@ require 'qtwidget'
 require 'nnx'
 require 'camera'
 require 'sys'
-require 'gnuplot'
 
 -- Title definition -----------------------------------------------------------
 local title = [[
@@ -27,10 +26,10 @@ local title = [[
 opt = lapp(title .. [[
 --temp_dir       (default '../Train/temp-data/') Location of test dataset
 --subsample_name (default 'indoor51')            Name of imagenet subsample. Possible options ('class51', 'elab')
---model          (string            )            Model's name
+--model          (default 'model-125.net.ascii')  Model's name
 --histogram                                      Shows prediction's histogram
---imageSide      (default 128                  ) Image's side length
---camera                                         Switch to camera input
+--imageSide      (default 149                  ) Image's side length
+--camera         (default true)                  Switch to camera input
 --camRes         (default VGA)                   Camera resolution ([VGA]|FWVGA|HD|FHD)
 --fps            (default 20                   ) Frames per second (camera setting)
 ]])
