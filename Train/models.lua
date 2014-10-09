@@ -8,13 +8,13 @@
 function get_model1(nbClasses, statFile, cuda)
 
    --options for (conv+pool+threshold) layers
-   local nConvLayers = 3 --number of (conv+pool+threshold) layers
-   local nFeatureMaps= {[0]=3, 16, 32, 32} --number of feature maps in conv layers
-   local filterSize  = {        9,  9,  9} --filter sizes in conv layers
-   local convPadding = {        0,  0,  0}
-   local convStride  = {        4,  1,  1}
-   local poolSize    = {        1,  2,  2}
-   local poolStride  = {        1,  2,  2}
+   local nConvLayers = 12 --number of (conv+pool+threshold) layers
+   local nFeatureMaps= {[0]=3, 16, 16, 16, 32, 32, 32, 32, 32, 32, 32, 32, 32} --number of feature maps in conv layers
+   local filterSize  = {        3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3} --filter sizes in conv layers
+   local convPadding = {        0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0}
+   local convStride  = {        1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1}
+   local poolSize    = {        1,  1,  2,  1,  1,  2,  1,  1,  2,  1,  1,  2}
+   local poolStride  = {        1,  1,  2,  1,  1,  2,  1,  1,  2,  1,  1,  2}
 
    --options for linear layers
    local neuronsPerLinearLayer = {128, 128} --number of neurons in linear layer
