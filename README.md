@@ -25,3 +25,7 @@ The repository tree, at the moment, is the following
 ### Local temporary folders and files
  - `Train/results`: contains the trained network and data for preprocessing
  - `Train/temp-data`: stores all temporary data
+
+### License
+
+MIT
